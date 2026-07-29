@@ -422,9 +422,9 @@ async function renderHome() {
   var totalEarnings = myVisits.reduce(function(s, v) { return s + (v.earnings||0); }, 0);
 
   var html = '<div class="card"><h3>📊 工作概览</h3><div class="stat-row">'+
-    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('all')"><div class="num">'+myVisits.length+'</div><div class="lbl">累计陌拜</div></div>'+
-    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('today')"><div class="num">'+todayVisits.length+'</div><div class="lbl">今日陌拜</div></div>'+
-    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('week')"><div class="num">'+weekVisits.length+'</div><div class="lbl">本周陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords(&apos;all&apos;)"><div class="num">'+myVisits.length+'</div><div class="lbl">累计陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords(&apos;today&apos;)"><div class="num">'+todayVisits.length+'</div><div class="lbl">今日陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords(&apos;week&apos;)"><div class="num">'+weekVisits.length+'</div><div class="lbl">本周陌拜</div></div>'+
     '<div class="stat-item"><div class="num">'+totalEarnings.toFixed(1)+'</div><div class="lbl">总收入(元)</div></div>'+
   '</div></div>';
 
