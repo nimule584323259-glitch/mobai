@@ -602,7 +602,7 @@ function takePhoto(slot, fromCamera) {
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
-  if (fromCamera !== false) input.capture = 'environment';
+  if (fromCamera === true) input.capture = 'environment';
   input.onchange = function(e) {
     var file = e.target.files[0];
     if (!file) return;
