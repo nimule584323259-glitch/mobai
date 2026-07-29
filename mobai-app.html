@@ -399,7 +399,7 @@ function switchTab(tab) {
 
 function goBack() {
   document.getElementById('backBtn').classList.remove('show');
-  if (currentPage==="worker-detail") { switchTab("admin"); return; }
+  if (currentPage==="worker-detail"||currentPage==="visit-detail") { switchTab("admin"); return; }
   switchTab(currentPage);
 }
 
@@ -733,7 +733,8 @@ async function renderRecords() {
   } else {
     var intents = {S:'强烈',A:'有意向',B:'一般',C:'拒绝'};
     sorted.forEach(function(v) {
-      html += '<div class="visit-item"><div class="v-name">'+(v.surname||'')+'总 · '+escHtml(v.storeName)+'</div>'+
+      html += '<div class="visit-item" style="cursor:pointer" onclick="viewVisitDetail('+v.id+')">'+
+        '<div class="v-name">'+(v.surname||'')+'总 · '+escHtml(v.storeName)+'</div>'+
         '<div class="v-addr">'+escHtml(v.storeAddr)+'</div>'+
         '<div class="v-meta"><span class="v-tag '+(v.intent||'b').toLowerCase()+'">'+(intents[v.intent]||'一般')+'</span>'+
         '<span class="v-tag">💰 '+(v.earnings||0).toFixed(2)+'元</span>'+
@@ -1103,6 +1104,34 @@ async function submitResource() {
   } catch(e) { showToast('上传失败'); }
 }
 
+
+async function viewVisitDetail(id) {
+  var visits = await dbAction("visits","readonly",function(s,ok){var r=s.get(id);r.onsuccess=function(){ok(r.result);};});
+  if (!visits) return showToast("记录不存在");
+  document.getElementById("pageTitle").textContent = "记录详情";
+  document.getElementById("backBtn").classList.add("show");
+  currentPage = "visit-detail";
+  var needs = (visits.needs||[]).join(",");
+  var html = "<div class=\"card\"><h3>📍 店铺信息</h3>"+
+    "<div style=\"font-size:13px;line-height:2\"><strong>店名：</strong>"+escHtml(visits.storeName)+"</div>"+
+    "<div><strong>地址：</strong>"+escHtml(visits.storeAddr)+"</div>"+
+    "<div><strong>类型：</strong>"+(visits.storeType||"-")+"</div></div>"+
+    "<div class=\"card\"><h3>👤 联系人</h3>"+
+    "<div><strong>老板：</strong>"+(visits.surname||"")+"总</div>"+
+    "<div><strong>电话：</strong>"+escHtml(visits.contactPhone)+"</div>"+
+    (visits.wechat?"<div><strong>微信：</strong>"+escHtml(visits.wechat)+"</div>":"")+"</div>"+
+    "<div class=\"card\"><h3>📝 陌拜情况</h3>"+
+    "<div><strong>意向：</strong>"+({S:"强烈",A:"有意向",B:"一般",C:"拒绝"}[visits.intent]||"一般")+"</div>"+
+    (needs?"<div><strong>需求：</strong>"+needs+"</div>":"")+
+    "<div><strong>酬劳：</strong>💰 "+(visits.earnings||0).toFixed(2)+" 元</div>"+
+    "<div><strong>时间：</strong>"+visits.date+" "+visits.time+"</div>"+
+    (visits.note?"<div><strong>备注：</strong>"+escHtml(visits.note)+"</div>":"")+"</div>";
+  if (visits.wechat) {
+    html += "<div class=\"card\"><h3>📱 微信</h3><div>微信号："+escHtml(visits.wechat)+"</div></div>";
+  }
+  html += "<div class=\"card\" style=\"text-align:center\"><button class=\"btn btn-primary\" onclick=\"editVisit("+id+")\">✏️ 修改记录</button></div>";
+  document.getElementById("mainContent").innerHTML = html;
+}
 
 function showFullImage(src) {
   var o = document.createElement("div");
