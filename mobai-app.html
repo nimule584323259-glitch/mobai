@@ -949,35 +949,51 @@ function viewWorker(phone) {
 
 // ====== Moments (Social Feed) ======
 async function renderMoments() {
-  var content = document.getElementById('mainContent');
-  var posts = await dbAction('posts', 'readonly', function(s, ok) {
-    var r = s.getAll(); r.onsuccess = function() { ok((r.result||[]).sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);})); };
-  });
-  var html = '<div class="card"><h3>🌐 工作圈</h3><p style="font-size:11px;color:#888">分享工作动态，互相鼓励</p></div>';
-  html += '<div class="card" style="text-align:center;padding:12px"><button class="btn btn-primary btn-sm" onclick="showPostModal()" style="width:auto;padding:10px 24px">📝 发动态</button></div>';
-  if (posts.length === 0) {
-    html += '<div class="empty-state"><div class="icon">📭</div><p>还没有动态<br>点击上方「发动态」分享第一条</p></div>';
+  var content = document.getElementById("mainContent");
+  var posts = await dbAction("posts","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok((r.result||[]).sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);}));};});
+  var comments = await dbAction("comments","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var likes = await dbAction("likes","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var html = "<div class=\"card\"><h3>🌐 工作圈</h3><p style=\"font-size:11px;color:#888\">分享工作动态，互相鼓励</p></div>";
+  html += "<div class=\"card\" style=\"text-align:center;padding:12px\"><button class=\"btn btn-primary btn-sm\" onclick=\"showPostModal()\" style=\"width:auto;padding:10px 24px\">📝 发动态</button></div>";
+  if (posts.length===0) {
+    html += "<div class=\"empty-state\"><div class=\"icon\">📭</div><p>还没有动态</p></div>";
   } else {
-    posts.forEach(function(p) {
-      var timeStr = (p.timestamp||'').replace('T',' ').substring(0,16);
-      html += '<div class="card" style="padding:14px">'+
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
-        '<div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px">'+ (p.userName||'?')[0] +'</div>'+
-        '<div><div style="font-size:13px;font-weight:600">'+escHtml(p.userName||'')+'</div><div style="font-size:10px;color:#888">'+timeStr+'</div></div></div>'+
-        '<div style="font-size:13px;line-height:1.6;margin-bottom:8px">'+escHtml(p.text||'')+'</div>';
-      if (p.images && p.images.length > 0) {
+    posts.forEach(function(p){
+      var likeCount = likes.filter(function(l){return l.postId===p.id;}).length;
+      var postComments = comments.filter(function(c2){return c2.postId===p.id;});
+      var userLiked = likes.filter(function(l){return l.postId===p.id&&l.phone===currentUser.phone;}).length>0;
+      var timeStr = (p.timestamp||"").replace("T"," ").substring(0,16);
+      html += "<div class=\"card\" style=\"padding:14px\"><div style=\"display:flex;align-items:center;gap:8px;margin-bottom:8px\">"+
+        "<div style=\"width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px\">"+(p.userName||"?")[0]+"</div>"+
+        "<div><div style=\"font-size:13px;font-weight:600\">"+escHtml(p.userName||"")+"</div><div style=\"font-size:10px;color:#888\">"+timeStr+"</div></div></div>"+
+        "<div style=\"font-size:13px;line-height:1.6;margin-bottom:8px\">"+escHtml(p.text||"")+"</div>";
+      // Images
+      if (p.images) {
         try {
           var imgs = JSON.parse(p.images);
-          html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px">';
-          imgs.forEach(function(img) {
-            html += '<div style="aspect-ratio:1;border-radius:6px;overflow:hidden;background:#f0f0f0"><img src="'+img+'" style="width:100%;height:100%;object-fit:cover"></div>';
-          });
-          html += '</div>';
-        } catch(e) {}
+          if (imgs.length>0) {
+            html += "<div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:8px\">";
+            imgs.forEach(function(img){
+              html += "<div style=\"aspect-ratio:1;border-radius:6px;overflow:hidden;background:#f0f0f0;cursor:pointer\" onclick=\"showFullImage('"+img+"')\"><img src=\""+img+"\" style=\"width:100%;height:100%;object-fit:cover\"></div>";
+            });
+            html += "</div><button class=\"btn btn-outline btn-sm\" onclick=\"downloadFile('"+(imgs[0]||"")+"','工作圈图片')\" style=\"font-size:10px;padding:4px 8px;margin-bottom:6px\">⬇ 下载</button>";
+          }
+        } catch(e){}
       }
-      html += '<div style="display:flex;gap:16px;padding-top:8px;border-top:1px solid #f0f0f0;font-size:12px;color:#888">'+
-        '<a style="cursor:pointer" onclick="toggleLike('+p.id+')">👍 '+(p.likeCount||0)+'</a>'+
-        '<a style="cursor:pointer" onclick="showComment('+p.id+')">💬 '+(p.commentCount||0)+'</a></div></div>';
+      // Likes & comments bar
+      html += "<div style=\"display:flex;gap:12px;padding:8px 0;border-top:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;font-size:13px\">"+
+        "<a style=\"cursor:pointer;color:"+(userLiked?"var(--accent)":"#888")+"\" onclick=\"toggleLike2("+p.id+")\">👍 "+(likeCount||0)+"</a>"+
+        "<a style=\"cursor:pointer;color:#888\" onclick=\"showComment2("+p.id+")\">💬 "+(postComments.length||0)+"</a></div>";
+      // Show comments inline
+      if (postComments.length>0) {
+        html += "<div style=\"margin-top:6px\">";
+        postComments.forEach(function(c2){
+          html += "<div style=\"font-size:12px;padding:4px 0;border-bottom:1px solid #f5f5f5\"><strong>"+escHtml(c2.userName||"")+"：</strong>"+escHtml(c2.text||"")+"</div>";
+        });
+        html += "</div>";
+      }
+      // Comment input
+      html += "<div style=\"display:flex;gap:6px;margin-top:6px\"><input type=\"text\" id=\"comment-input-"+p.id+"\" placeholder=\"写评论...\" style=\"flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px\"><button class=\"btn btn-sm btn-primary\" style=\"padding:6px 12px;width:auto\" onclick=\"submitComment("+p.id+")\">发送</button></div></div>";
     });
   }
   content.innerHTML = html;
@@ -1026,7 +1042,7 @@ async function submitPost() {
   } catch(e) { showToast('发布失败'); }
 }
 
-async function toggleLike(postId) {
+async function toggleLike2(postId) {
   var existing = await dbAction('likes', 'readonly', function(s, ok) {
     var idx = s.index('postId');
     var r = idx.getAll(IDBKeyRange.only(postId));
@@ -1040,7 +1056,7 @@ async function toggleLike(postId) {
   renderMoments();
 }
 
-function showComment(postId) {
+function showComment2(postId) {
   var text = prompt('输入评论内容：');
   if (!text) return;
   dbAction('comments', 'readwrite', function(s) {
@@ -1176,6 +1192,13 @@ async function viewVisitDetail(id) {
   }
   html += "<div class=\"card\" style=\"text-align:center\"><button class=\"btn btn-primary\" onclick=\"editVisit("+id+")\">✏️ 修改记录</button></div>";
   document.getElementById("mainContent").innerHTML = html;
+}
+
+function submitComment(postId) {
+  var input = document.getElementById("comment-input-"+postId);
+  if (!input||!input.value.trim()) return;
+  var text = input.value.trim(); input.value = "";
+  dbAction("comments","readwrite",function(s){s.add({postId:postId,phone:currentUser.phone,userName:currentUser.name,text:text,timestamp:new Date().toISOString()});}).then(function(){renderMoments();});
 }
 
 function showFullImage(src) {
