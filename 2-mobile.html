@@ -1,0 +1,392 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>陌拜采集记录</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;padding:12px;padding-bottom:80px;color:#1a1a2e}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.header h1{font-size:18px;font-weight:600}
+.header p{font-size:12px;opacity:.8;margin-top:4px}
+.tab-bar{display:flex;gap:8px;margin-bottom:12px}
+.tab{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:13px;font-weight:500;background:#fff;color:#666;cursor:pointer;border:none;transition:all .2s}
+.tab.active{background:#1a1a2e;color:#fff}
+.tab .badge{display:inline-block;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px}
+.form-card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.form-card h2{font-size:15px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee}
+.field{margin-bottom:14px}
+.field-label{font-size:12px;font-weight:500;color:#555;margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.field-label .req{color:#e74c3c;font-weight:700}
+.field-label .bonus{background:#f39c12;color:#fff;font-size:9px;padding:1px 5px;border-radius:4px}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border .2s;background:#fafafa;font-family:inherit}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#1a1a2e;background:#fff}
+.field textarea{resize:vertical;min-height:50px}
+.field .inline-group{display:flex;gap:8px}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px}
+.checkbox-group label{display:flex;align-items:center;gap:6px;font-size:13px;background:#f5f5f5;padding:6px 10px;border-radius:6px;cursor:pointer;border:1.5px solid transparent}
+.checkbox-group label:has(input:checked){border-color:#1a1a2e;background:#e8e8f0}
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn{flex:1;padding:12px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-primary{background:#1a1a2e;color:#fff}
+.btn-secondary{background:#eee;color:#555}
+.btn-success{background:#27ae60;color:#fff}
+.btn-danger{background:#e74c3c;color:#fff}
+.hidden{display:none!important}
+.record-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
+.record-card .shop-name{font-size:15px;font-weight:600;margin-bottom:2px}
+.record-card .shop-addr{font-size:12px;color:#888;margin-bottom:6px}
+.record-card .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#555}
+.record-card .tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:6px;margin-right:4px}
+.tag-done{background:#d4edda;color:#155724}
+.tag-miss{background:#f8d7da;color:#721c24}
+.tag-partial{background:#fff3cd;color:#856404}
+.record-card .del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:#ccc;font-size:18px;cursor:pointer}
+.record-card .record-actions{display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid #eee}
+.stats-bar{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
+.stats-bar .num{font-size:20px;font-weight:700;color:#1a1a2e}
+.stats-bar .lbl{font-size:10px;color:#888;margin-top:2px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.export-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:998;display:none;align-items:center;justify-content:center}
+.export-modal-overlay.show{display:flex}
+.export-modal{background:#fff;border-radius:12px;padding:20px;width:90%;max-width:360px;max-height:70vh;overflow-y:auto}
+.export-modal h3{font-size:15px;margin-bottom:10px}
+.export-modal textarea{width:100%;height:120px;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:11px;font-family:monospace;resize:vertical}
+.filter-bar{display:flex;gap:8px;margin-bottom:10px}
+.filter-bar select,.filter-bar input{flex:1;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;background:#fff}
+.empty-state{text-align:center;padding:40px 20px;color:#aaa}
+.empty-state .icon{font-size:40px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>陌拜采集记录</h1>
+  <p>郑州美业门店信息采集 · 一键保存</p>
+</div>
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('form')" id="tab-form">填写</button>
+  <button class="tab" onclick="switchTab('list')" id="tab-list">记录 <span class="badge" id="count-badge">0</span></button>
+</div>
+<!-- 填写表单 -->
+<div id="panel-form">
+<div class="form-card">
+<h2>门店基本信息</h2>
+<div class="field">
+<div class="field-label"><span class="req">*</span> 店名 / 门头名称</div>
+<input type="text" id="f-name" placeholder="例：丽颜美容SPA馆" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label"><span class="req">*</span> 门店位置（发精准定位）</div>
+<input type="text" id="f-addr" placeholder="例：金水区花园路XX号" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label">门店类型</div>
+<select id="f-type">
+<option value="">请选择</option>
+<option>美容院</option>
+<option>养生馆</option>
+<option>减肥店</option>
+<option>斑敏痘问题肌</option>
+<option>美学馆</option>
+<option>洗脸吧</option>
+<option>养发护发馆</option>
+<option>SPA馆</option>
+<option>美甲美睫店</option>
+<option>艾灸养生馆</option>
+<option>其它</option>
+</select>
+</div>
+</div>
+
+<div class="form-card">
+<h2>老板信息</h2>
+<div class="field">
+<div class="field-label"><span class="req">*</span> 老板姓</div>
+<input type="text" id="f-surname" placeholder="例：王" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label">老板全名（选填）</div>
+<input type="text" id="f-fullname" placeholder="知道的话填上" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label"><span class="req">*</span> 老板电话</div>
+<input type="tel" id="f-phone" placeholder="11位手机号" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label">微信 <span class="bonus">+0.3元</span></div>
+<input type="text" id="f-wechat" placeholder="微信号/手机号" autocomplete="off">
+</div>
+<div class="field">
+<div class="field-label">微信二维码照片 <span class="bonus">+0.3元</span></div>
+<select id="f-qrcode">
+<option value="0">未获取</option>
+<option value="1">已拍二维码照片</option>
+</select>
+</div>
+</div>
+
+<div class="form-card">
+<h2>照片采集（必拍4张）</h2>
+<div class="checkbox-group">
+<label><input type="checkbox" id="pic-door"> <span>门头全景</span></label>
+<label><input type="checkbox" id="pic-near"> <span>近距离大门</span></label>
+<label><input type="checkbox" id="pic-front"> <span>前台</span></label>
+<label><input type="checkbox" id="pic-inside"> <span>店内环境</span></label>
+</div>
+</div>
+
+<div class="form-card">
+<h2>陌拜情况</h2>
+<div class="field">
+<div class="field-label">是否进店</div>
+<select id="f-entered">
+<option value="1">已进店</option>
+<option value="0">未进店（仅在门口）</option>
+</select>
+</div>
+<div class="field">
+<div class="field-label">意向度</div>
+<select id="f-intent">
+<option value="C">C - 无兴趣 / 拒绝</option>
+<option value="B" selected>B - 一般 / 留了联系方式</option>
+<option value="A">A - 感兴趣 / 想进一步了解</option>
+<option value="S">S - 强烈意向 / 约了下次细聊</option>
+</select>
+</div>
+<div class="field">
+<div class="field-label">老板需求（可多选）</div>
+<div class="checkbox-group">
+<label><input type="checkbox" id="need-tuoke"> <span>拓客</span></label>
+<label><input type="checkbox" id="need-zhaopin"> <span>招聘</span></label>
+<label><input type="checkbox" id="need-yeji"> <span>做业绩</span></label>
+<label><input type="checkbox" id="need-xinpin"> <span>新品项</span></label>
+</div>
+</div>
+<div class="field">
+<div class="field-label">备注 / 观察记录</div>
+<textarea id="f-note" placeholder="员工数量、装修档次、用啥品牌、聊天要点"></textarea>
+</div>
+</div>
+
+<div class="btn-row">
+<button class="btn btn-primary" onclick="saveRecord()">保存本条记录</button>
+<button class="btn btn-secondary" onclick="clearForm()">清空</button>
+</div>
+</div>
+<!-- 记录列表 -->
+<div id="panel-list" class="hidden">
+<div class="stats-bar">
+<div><div class="num" id="stat-total">0</div><div class="lbl">总店数</div></div>
+<div><div class="num" id="stat-s">0</div><div class="lbl">S级意向</div></div>
+<div><div class="num" id="stat-a">0</div><div class="lbl">A级意向</div></div>
+<div><div class="num" id="stat-wechat">0</div><div class="lbl">已加微信</div></div>
+</div>
+<div class="filter-bar">
+<select id="filter-intent" onchange="renderList()">
+<option value="">全部意向</option>
+<option value="S">S级</option><option value="A">A级</option>
+<option value="B">B级</option><option value="C">C级</option>
+</select>
+<input type="text" id="filter-search" placeholder="搜店名/地址" oninput="renderList()">
+</div>
+<div style="display:flex;gap:8px;margin-bottom:10px">
+<button class="btn btn-success" style="flex:1;padding:8px;font-size:12px" onclick="exportText()">导出交差文本</button>
+<button class="btn btn-danger" style="flex:1;padding:8px;font-size:12px" onclick="if(confirm('确认清空所有记录？')){localStorage.removeItem('mobaiRecords');renderList()}">清空全部</button>
+</div>
+<div id="record-list"></div>
+<div class="form-card" style="text-align:center;color:#aaa;font-size:12px;padding:12px">数据保存在手机本地，清除浏览器缓存会丢失</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 导出弹窗 -->
+<div class="export-modal-overlay" id="export-modal">
+<div class="export-modal">
+<h3>导出交差文本</h3>
+<p style="font-size:12px;color:#888;margin-bottom:8px">复制以下内容发给领导或粘贴到表格中</p>
+<textarea id="export-text" readonly></textarea>
+<button class="btn btn-primary" onclick="copyExport()">复制到剪贴板</button>
+<button class="btn btn-secondary" style="margin-top:4px" onclick="closeExport()">关闭</button>
+</div>
+</div>
+
+<script>
+var editIndex = -1;
+function getRecords(){try{return JSON.parse(localStorage.getItem('mobaiRecords'))||[]}catch(e){return[]}}
+function saveRecords(r){localStorage.setItem('mobaiRecords',JSON.stringify(r));updateBadge();renderList();updateStats()}
+function switchTab(tab){
+  document.getElementById('tab-form').className='tab'+(tab==='form'?' active':'')
+  document.getElementById('tab-list').className='tab'+(tab==='list'?' active':'')
+  document.getElementById('panel-form').className=(tab==='form'?'':'hidden')
+  document.getElementById('panel-list').className=(tab==='list'?'':'hidden')
+  if(tab==='list'){renderList();updateStats()}
+}
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show')
+  setTimeout(function(){t.classList.remove('show')},2000)
+}
+function getFormData(){
+  var pics=[]
+  if(document.getElementById('pic-door').checked)pics.push('门头')
+  if(document.getElementById('pic-near').checked)pics.push('大门')
+  if(document.getElementById('pic-front').checked)pics.push('前台')
+  if(document.getElementById('pic-inside').checked)pics.push('环境')
+  var needs=[]
+  if(document.getElementById('need-tuoke').checked)needs.push('拓客')
+  if(document.getElementById('need-zhaopin').checked)needs.push('招聘')
+  if(document.getElementById('need-yeji').checked)needs.push('做业绩')
+  if(document.getElementById('need-xinpin').checked)needs.push('新品项')
+  return{
+    name:document.getElementById('f-name').value.trim(),
+    addr:document.getElementById('f-addr').value.trim(),
+    type:document.getElementById('f-type').value,
+    surname:document.getElementById('f-surname').value.trim(),
+    fullname:document.getElementById('f-fullname').value.trim(),
+    phone:document.getElementById('f-phone').value.trim(),
+    wechat:document.getElementById('f-wechat').value.trim(),
+    qrcode:document.getElementById('f-qrcode').value,
+    pics:pics,entered:document.getElementById('f-entered').value,
+    intent:document.getElementById('f-intent').value,
+    needs:needs,note:document.getElementById('f-note').value.trim(),
+    time:new Date().toLocaleString('zh-CN',{hour12:false})
+  }
+}
+function setFormData(d){
+  document.getElementById('f-name').value=d.name||''
+  document.getElementById('f-addr').value=d.addr||''
+  document.getElementById('f-type').value=d.type||''
+  document.getElementById('f-surname').value=d.surname||''
+  document.getElementById('f-fullname').value=d.fullname||''
+  document.getElementById('f-phone').value=d.phone||''
+  document.getElementById('f-wechat').value=d.wechat||''
+  document.getElementById('f-qrcode').value=d.qrcode||'0'
+  document.getElementById('pic-door').checked=d.pics&&d.pics.indexOf('门头')>=0
+  document.getElementById('pic-near').checked=d.pics&&d.pics.indexOf('大门')>=0
+  document.getElementById('pic-front').checked=d.pics&&d.pics.indexOf('前台')>=0
+  document.getElementById('pic-inside').checked=d.pics&&d.pics.indexOf('环境')>=0
+  document.getElementById('f-entered').value=d.entered||'1'
+  document.getElementById('f-intent').value=d.intent||'B'
+  document.getElementById('need-tuoke').checked=d.needs&&d.needs.indexOf('拓客')>=0
+  document.getElementById('need-zhaopin').checked=d.needs&&d.needs.indexOf('招聘')>=0
+  document.getElementById('need-yeji').checked=d.needs&&d.needs.indexOf('做业绩')>=0
+  document.getElementById('need-xinpin').checked=d.needs&&d.needs.indexOf('新品项')>=0
+  document.getElementById('f-note').value=d.note||''
+}
+function clearForm(){
+  editIndex=-1;var ids=['f-name','f-addr','f-surname','f-fullname','f-phone','f-wechat','f-note']
+  ids.forEach(function(id){document.getElementById(id).value=''})
+  document.getElementById('f-type').value=''
+  document.getElementById('f-qrcode').value='0'
+  document.getElementById('pic-door').checked=false
+  document.getElementById('pic-near').checked=false
+  document.getElementById('pic-front').checked=false
+  document.getElementById('pic-inside').checked=false
+  document.getElementById('f-entered').value='1'
+  document.getElementById('f-intent').value='B'
+  document.getElementById('need-tuoke').checked=false
+  document.getElementById('need-zhaopin').checked=false
+  document.getElementById('need-yeji').checked=false
+  document.getElementById('need-xinpin').checked=false
+  switchTab('form')
+}
+function saveRecord(){
+  var d=getFormData()
+  if(!d.name)return showToast('请填写店名')
+  if(!d.addr)return showToast('请填写门店位置')
+  if(!d.surname)return showToast('请填写老板姓')
+  if(!d.phone)return showToast('请填写老板电话')
+  if(d.phone.length<11)return showToast('电话格式不对')
+  var records=getRecords()
+  if(editIndex>=0){records[editIndex]=d;editIndex=-1;showToast('已更新')}
+  else{records.unshift(d);showToast('保存成功')}
+  saveRecords(records);clearForm()
+}
+function updateBadge(){document.getElementById('count-badge').textContent=getRecords().length}
+function updateStats(){
+  var r=getRecords()
+  document.getElementById('stat-total').textContent=r.length
+  document.getElementById('stat-s').textContent=r.filter(function(x){return x.intent==='S'}).length
+  document.getElementById('stat-a').textContent=r.filter(function(x){return x.intent==='A'}).length
+  document.getElementById('stat-wechat').textContent=r.filter(function(x){return x.wechat}).length
+}
+function escHtml(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function renderList(){
+  var r=getRecords()
+  var fi=document.getElementById('filter-intent').value
+  var fs=document.getElementById('filter-search').value.trim().toLowerCase()
+  if(fi)r=r.filter(function(x){return x.intent===fi})
+  if(fs)r=r.filter(function(x){return (x.name+x.addr).toLowerCase().indexOf(fs)>=0})
+  var el=document.getElementById('record-list')
+  if(!r.length){el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>还没有记录<br>先去填写吧</p></div>';return}
+  var intentMap={'S':'强烈','A':'有意向','B':'一般','C':'拒绝'}
+  var intentCls={'S':'tag-done','A':'tag-partial','B':'tag-partial','C':'tag-miss'}
+  el.innerHTML=r.map(function(d,i){
+    var picStatus=d.pics.length>=(d.entered==='1'?4:1)?'tag-done':'tag-miss'
+    var ws=d.wechat?'tag-done':'tag-miss'
+    return '<div class="record-card">'+
+      '<button class="del-btn" onclick="deleteRecord('+i+')">✕</button>'+
+      '<div class="shop-name">'+(d.surname?escHtml(d.surname)+'总 · ':'')+escHtml(d.name)+'</div>'+
+      '<div class="shop-addr">'+escHtml(d.addr)+'</div>'+
+      '<div class="info-grid">'+
+        '<span>📞 '+escHtml(d.phone)+'</span>'+
+        '<span>📱 '+(d.wechat||'—')+'</span>'+
+        '<span>🏪 '+(d.type||'未选')+'</span>'+
+        '<span>⏱ '+d.time+'</span>'+
+      '</div><div>'+
+        '<span class="tag '+intentCls[d.intent]+'">'+intentMap[d.intent]+'</span>'+
+        '<span class="tag '+picStatus+'">照片'+d.pics.length+'张</span>'+
+        '<span class="tag '+ws+'">'+(d.wechat?'已加微信':'无微信')+'</span>'+
+        (d.needs.length?'<span class="tag tag-done">需求:'+d.needs.join('/')+'</span>':'')+
+      '</div>'+
+      (d.note?'<div style="font-size:11px;color:#888;margin-top:4px">📝 '+escHtml(d.note)+'</div>':'')+
+      '<div class="record-actions"><button style="background:#f0f0f0;color:#333;border:none;border-radius:6px;padding:6px;font-size:11px;cursor:pointer" onclick="editRecord('+i+')">✏️ 编辑</button></div>'+
+    '</div>'
+  }).join('')
+}
+function deleteRecord(idx){
+  if(!confirm('确认删除这条记录？'))return
+  var r=getRecords();r.splice(idx,1);saveRecords(r)
+}
+function editRecord(idx){
+  var r=getRecords();editIndex=idx;setFormData(r[idx]);switchTab('form')
+}
+function exportText(){
+  var r=getRecords()
+  if(!r.length){showToast('没有记录可导出');return}
+  var txt='===== 陌拜采集汇总 =====\n'
+  txt+='采集时间：'+new Date().toLocaleDateString('zh-CN')+'\n'
+  txt+='总店数：'+r.length+'家\n'
+  txt+='S级意向：'+r.filter(function(x){return x.intent==='S'}).length+'家\n'
+  txt+='A级意向：'+r.filter(function(x){return x.intent==='A'}).length+'家\n'
+  txt+='已加微信：'+r.filter(function(x){return x.wechat}).length+'个\n'
+  txt+='二维码照片：'+r.filter(function(x){return x.qrcode==='1'}).length+'个\n'
+  txt+='照片齐全：'+r.filter(function(x){return x.pics.length>=4}).length+'家\n\n'
+  txt+='详细记录：\n'
+  r.forEach(function(d,i){
+    txt+='\n'+(i+1)+'. '+d.surname+'总 - '+d.name+'\n'
+    txt+='   位置：'+d.addr+'\n'
+    txt+='   类型：'+(d.type||'未填')+' | 电话：'+d.phone+'\n'
+    txt+='   微信：'+(d.wechat||'无')+' | 二维码：'+(d.qrcode==='1'?'已拍':'未拍')+'\n'
+    txt+='   照片：'+d.pics.join('、')+(d.pics.length?' ('+d.pics.length+'张)':'无')+'\n'
+    var im={'S':'强烈','A':'有意向','B':'一般','C':'拒绝'}
+    txt+='   意向：'+im[d.intent]+' | 进店：'+(d.entered==='1'?'是':'否')+'\n'
+    txt+='   需求：'+(d.needs.length?d.needs.join('、'):'未明确')+'\n'
+    if(d.note)txt+='   备注：'+d.note+'\n'
+    txt+='   时间：'+d.time+'\n'
+  })
+  txt+='\n===== 汇报完毕 ====='
+  document.getElementById('export-text').value=txt
+  document.getElementById('export-modal').classList.add('show')
+}
+function copyExport(){
+  var ta=document.getElementById('export-text')
+  ta.select();ta.setSelectionRange(0,99999)
+  navigator.clipboard.writeText(ta.value).then(function(){showToast('已复制到剪贴板')}).catch(function(){showToast('已复制')})
+}
+function closeExport(){document.getElementById('export-modal').classList.remove('show')}
+updateBadge();renderList();updateStats()
+</script>
+</body>
+</html>
