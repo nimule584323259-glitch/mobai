@@ -1083,32 +1083,96 @@ function showComment2(postId) {
 
 // ====== Library (Resources) ======
 async function renderLibrary() {
-  var content = document.getElementById('mainContent');
-  var resources = await dbAction('resources', 'readonly', function(s, ok) {
-    var r = s.getAll(); r.onsuccess = function() { ok((r.result||[]).sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);})); };
-  });
-  var html = '<div class="card"><h3>📚 学习资料库</h3><p style="font-size:11px;color:#888">管理者上传的项目资料，供团队成员学习查看</p></div>';
-  if (currentUser.role === 'admin') {
-    html += '<div class="card" style="text-align:center;padding:12px"><button class="btn btn-primary btn-sm" onclick="showResourceUpload()" style="width:auto;padding:10px 24px">📤 上传资料</button></div>';
+  var content = document.getElementById("mainContent");
+  var resources = await dbAction("resources","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok((r.result||[]).sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);}));};});
+  var html = "<div class=\"card\"><h3>📚 学习资料库</h3><p style=\"font-size:11px;color:#888\">管理者上传的项目资料，供团队成员学习查看</p></div>";
+  if (currentUser.role === "admin") {
+    html += "<div class=\"card\" style=\"text-align:center;padding:12px\"><button class=\"btn btn-primary btn-sm\" onclick=\"showResourceUpload()\" style=\"width:auto;padding:10px 24px\">📤 上传资料</button></div>";
   }
   if (resources.length === 0) {
-    html += '<div class="empty-state"><div class="icon">📚</div><p>暂无资料</p></div>';
+    html += "<div class=\"empty-state\"><div class=\"icon\">📚</div><p>暂无资料</p></div>";
   } else {
-    resources.forEach(function(r) {
-      var timeStr = (r.timestamp||'').replace('T',' ').substring(0,16);
-      html += '<div class="card" style="padding:14px">'+
-        '<div style="font-size:14px;font-weight:600">'+escHtml(r.title||'')+'</div>'+
-        '<div style="font-size:11px;color:#888;margin:4px 0">上传者：'+escHtml(r.userName||'')+' | '+timeStr+'</div>'+
-        '<div style="font-size:12px;color:#555;margin:6px 0">'+escHtml(r.description||'')+'</div>';
-      if (r.type === 'image' && r.data) {
-        html += '<img src="'+r.data+'" style="width:100%;border-radius:8px;margin-top:4px">';
-      } else if (r.type === 'text' && r.data) {
-        html += '<div style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:12px;margin-top:4px;white-space:pre-wrap">'+escHtml(r.data||'')+'</div>';
+    resources.forEach(function(r){
+      var timeStr = (r.timestamp||"").replace("T"," ").substring(0,16);
+      html += "<div class=\"card\" style=\"padding:14px\">";
+      if (r.title) html += "<div style=\"font-size:14px;font-weight:600\">"+escHtml(r.title)+"</div>";
+      html += "<div style=\"font-size:11px;color:#888;margin:4px 0\">上传者："+escHtml(r.userName||"")+" | "+timeStr+"</div>";
+      if (r.desc) html += "<div style=\"font-size:12px;color:#555;margin:6px 0\">"+escHtml(r.desc)+"</div>";
+      if (r.type === "image" && r.data) {
+        html += "<img src=\""+r.data+"\" style=\"width:100%;border-radius:8px;margin-top:4px;cursor:pointer\" onclick=\"showFullImage('"+r.data+"')\">";
+        html += "<div style=\"margin-top:4px;display:flex;gap:6px\"><button class=\"btn btn-outline btn-sm\" onclick=\"downloadFile('"+r.data+"','资料图片')\" style=\"font-size:10px;padding:4px 8px\">⬇ 下载</button>";
+        if (currentUser.role === "admin") {
+          html += "<button class=\"btn btn-danger btn-sm\" onclick=\"deleteResource("+r.id+")\" style=\"font-size:10px;padding:4px 8px\">🗑 删除</button>";
+        }
+        html += "</div>";
+      } else if (r.type === "text" && r.data) {
+        html += "<div style=\"background:#f5f5f5;padding:10px;border-radius:6px;font-size:12px;margin-top:4px;white-space:pre-wrap\">"+escHtml(r.data||"")+"</div>";
       }
-      html += '</div>';
+      html += "</div>";
     });
   }
   content.innerHTML = html;
+}
+
+function deleteResource(id) {
+  if (!confirm("确认删除此资料？")) return;
+  dbAction("resources","readwrite",function(s){s.delete(id);}).then(function(){renderLibrary();showToast("已删除");});
+}
+
+function showResourceUpload() {
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px";
+  overlay.innerHTML = "<div style=\"background:#fff;border-radius:12px;padding:20px;width:100%;max-width:360px\">"+
+    "<h3 style=\"font-size:15px;margin-bottom:10px\">📤 上传资料</h3>"+
+    "<div style=\"text-align:center;padding:20px;border:2px dashed #ddd;border-radius:8px;margin-bottom:10px;cursor:pointer\" onclick=\"pickResourceFile()\">"+
+    "<div style=\"font-size:36px;margin-bottom:6px\">📷</div>"+
+    "<div style=\"font-size:13px;color:#888\">点击选择图片或文件</div>"+
+    "<div style=\"font-size:11px;color:#aaa;margin-top:4px\">支持相册 / 拍照 / 文件</div></div>"+
+    "<div class=\"field\"><input type=\"text\" id=\"res-title\" placeholder=\"标题（选填）\"></div>"+
+    "<div style=\"display:flex;gap:6px\"><button class=\"btn btn-primary btn-sm\" onclick=\"submitResource()\" style=\"flex:1\">上传</button>"+
+    "<button class=\"btn btn-outline btn-sm\" onclick=\"this.parentElement.parentElement.parentElement.remove()\" style=\"flex:1\">取消</button></div></div>";
+  document.body.appendChild(overlay);
+}
+
+var pendingResourceFile = null;
+function pickResourceFile() {
+  var input = document.createElement("input");
+  input.type = "file"; input.accept = "image/*";
+  input.onchange = function(e) {
+    if (!e.target.files[0]) return;
+    pendingResourceFile = e.target.files[0];
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var div = document.querySelector("[style*=\"dashed\"]");
+      if (div) {
+        div.style.borderColor = "#27ae60";
+        div.style.background = "#f0fff4";
+        div.innerHTML = "<div style=\"font-size:36px;margin-bottom:4px\">✅</div><div style=\"font-size:13px;color:#27ae60\">已选择文件</div><div style=\"font-size:11px;color:#888\">"+e.target.files[0].name+"</div>";
+      }
+    };
+    reader.readAsDataURL(e.target.files[0]);
+  };
+  input.click();
+}
+
+async function submitResource() {
+  if (!pendingResourceFile) { showToast("请先选择文件"); return; }
+  var title = document.getElementById("res-title").value.trim();
+  var data = await new Promise(function(ok) {
+    var reader = new FileReader();
+    reader.onload = function(ev) { ok(ev.target.result); };
+    reader.readAsDataURL(pendingResourceFile);
+  });
+  try {
+    await dbAction("resources","readwrite",function(s){
+      s.add({title:title||"资料",type:"image",data:data,userName:currentUser.name,phone:currentUser.phone,timestamp:new Date().toISOString()});
+    });
+    pendingResourceFile = null;
+    var overlay = document.querySelector("[style*=\"fixed\"]");
+    if (overlay) overlay.remove();
+    showToast("上传成功！");
+    renderLibrary();
+  } catch(e) { showToast("上传失败"); }
 }
 
 function showResourceUpload() {
