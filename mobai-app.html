@@ -598,11 +598,11 @@ function renderVisitForm() {
   });
 }
 
-function takePhoto(slot) {
+function takePhoto(slot, fromCamera) {
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
-  input.capture = 'environment';
+  if (fromCamera !== false) input.capture = 'environment';
   input.onchange = function(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -1185,6 +1185,20 @@ async function editVisit(id) {
     var el = document.getElementById(pair[0]);
     if (el) el.checked = needs.indexOf(pair[1]) >= 0;
   });
+  // Load existing photos in edit mode
+  if (visits.photos) {
+    try {
+      var savedPhotos = JSON.parse(visits.photos);
+      for (var key in savedPhotos) {
+        photoData[key] = savedPhotos[key];
+        var el = document.getElementById("photo-"+key);
+        if (el) {
+          el.innerHTML = "<img src=\""+savedPhotos[key]+"\"><div class=\"check\">✓</div>";
+          el.classList.add("has-photo");
+        }
+      }
+    } catch(e) {}
+  }
   showToast("✏️ 编辑模式，修改后点保存");
 }
 async function renderAdminWorkerDetail(phone) {
