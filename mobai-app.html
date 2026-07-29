@@ -399,7 +399,7 @@ function switchTab(tab) {
 
 function goBack() {
   document.getElementById('backBtn').classList.remove('show');
-  if (currentPage==="worker-detail"||currentPage==="visit-detail") { switchTab("admin"); return; }
+  if (currentPage==="worker-detail"||currentPage==="visit-detail"||currentPage==="filtered-records") { switchTab("admin"); return; }
   switchTab(currentPage);
 }
 
@@ -660,6 +660,27 @@ async function saveVisit() {
     try { await dbAction("visits","readwrite",function(s){s.delete(currentEditId);}); } catch(e) {}
     currentEditId = null;
   }
+  // Duplicate check: same store name+address by any user
+  var name = document.getElementById("v-name").value.trim();
+  var addr = document.getElementById("v-addr").value.trim();
+  if (name && addr) {
+    var allVisits = await dbAction("visits","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+    var dup = null;
+    for (var i=0;i<allVisits.length;i++) {
+      var v = allVisits[i];
+      if (v.storeName===name && v.storeAddr===addr && v.phone!==currentUser.phone) {
+        dup = v; break;
+      }
+    }
+    if (dup) {
+      if (!confirm("⚠️ 该店铺已被 "+dup.userName+" 于 "+dup.date+" 陌拜过！\n继续保存将不计酬劳。确定保存吗？")) { return; }
+      // Force earnings to 0 for duplicate
+      setTimeout(function(){
+        var payEl = document.getElementById("payPreview");
+        if (payEl) { payEl.innerHTML = "⚠️ 重复店铺，酬劳为 0 元"; payEl.style.background="#f8d7da"; payEl.style.color="#721c24"; }
+      }, 100);
+    }
+  }
   var name = document.getElementById('v-name').value.trim();
   var addr = document.getElementById('v-addr').value.trim();
   var surname = document.getElementById('v-surname').value.trim();
@@ -895,6 +916,30 @@ async function renderAdmin() {
       '</div><div style="font-size:10px;color:#aaa;margin-top:2px">'+v.date+' '+v.time+'</div></div>';
   });
   html += '</div>';
+  // Duplicate store detection for admin
+  html += "<div class=\"card\"><h3>⚠️ 重复店铺检测</h3>";
+  var allV = visits;
+  var dupMap = {};
+  for (var i=0;i<allV.length;i++) {
+    var key = allV[i].storeName+"|"+allV[i].storeAddr;
+    if (!dupMap[key]) dupMap[key] = [];
+    dupMap[key].push(allV[i]);
+  }
+  var dupCount = 0;
+  for (var key in dupMap) {
+    if (dupMap[key].length > 1) {
+      dupCount++;
+      var items = dupMap[key];
+      html += "<div style=\"font-size:12px;padding:6px 0;border-bottom:1px solid #f0f0f0\">";
+      html += "⚠️ "+escHtml(items[0].storeName)+"<br>";
+      for (var j=0;j<items.length;j++) {
+        html += "<span style=\"color:#888;margin-left:8px\">"+items[j].userName+" "+items[j].date+" ¥"+(items[j].earnings||0).toFixed(1)+"</span><br>";
+      }
+      html += "</div>";
+    }
+  }
+  if (dupCount===0) html += "<p style=\"font-size:12px;color:#888\">暂未发现重复店铺</p>";
+  html += "</div>";
   content.innerHTML = html;
 }
 
