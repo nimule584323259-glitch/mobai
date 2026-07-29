@@ -170,7 +170,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
     <div class="auth-card" id="register-form" style="display:none">
       <h2>注册</h2>
       <div class="field"><label><span class="req">*</span> 真实姓名</label><input type="text" id="reg-name" placeholder="请输入真实姓名"></div>
-      <div class="field"><label><span class="req">*</span> 手机号</label><input type="tel" id="reg-phone" placeholder="11位手机号" maxlength="11"></div>
+      <div class="field"><label><span class="req">*</span> 手机号</label><div style="display:flex;gap:6px"><input type="tel" id="reg-phone" placeholder="11位手机号" maxlength="11" style="flex:1"><button class="btn btn-sm btn-outline" onclick="sendSmsCode()" id="smsBtn" style="width:auto;white-space:nowrap;padding:10px 8px;font-size:11px">发送验证码</button></div></div><div class="field"><label><span class="req">*</span> 短信验证码</label><input type="text" id="reg-sms" placeholder="请输入6位验证码" maxlength="6"></div>
       <div class="field"><label><span class="req">*</span> 身份证号</label><input type="text" id="reg-id" placeholder="18位身份证号" maxlength="18"></div>
       <div class="field"><label><span class="req">*</span> 设置密码</label><input type="password" id="reg-pwd" placeholder="不少于6位"></div>
       <div class="field"><label>角色</label>
@@ -305,6 +305,24 @@ function showLogin() {
   document.getElementById('login-form').style.display = 'block';
   document.getElementById('register-form').style.display = 'none';
 }
+var smsTimer = null;
+function sendSmsCode() {
+  var phone = document.getElementById('reg-phone').value.trim();
+  if (phone.length < 11) return showToast('请输入正确的手机号');
+  var btn = document.getElementById('smsBtn');
+  if (btn.disabled) return;
+  var code = String(Math.floor(100000 + Math.random() * 900000));
+  sessionStorage.setItem('sms_code_'+phone, code);
+  showToast('验证码已发送：' + code + '（模拟，正式上线对接短信服务商）');
+  btn.disabled = true;
+  var sec = 60;
+  btn.textContent = sec + 's';
+  smsTimer = setInterval(function() {
+    sec--;
+    btn.textContent = sec + 's';
+    if (sec <= 0) { clearInterval(smsTimer); btn.disabled = false; btn.textContent = '发送验证码'; }
+  }, 1000);
+}
 async function register() {
   var name = document.getElementById('reg-name').value.trim();
   var phone = document.getElementById('reg-phone').value.trim();
@@ -313,6 +331,9 @@ async function register() {
   var role = document.getElementById('reg-role').value;
   if (!name || !phone || !idNum || !pwd) return showToast('请填写完整信息');
   if (phone.length < 11) return showToast('手机号格式不对');
+  var smsCode = document.getElementById('reg-sms').value.trim();
+  var storedSms = sessionStorage.getItem('sms_code_'+phone);
+  if (!smsCode || smsCode !== storedSms) return showToast('短信验证码错误，请重新获取');
   if (idNum.length < 18) return showToast('身份证号格式不对');
   if (pwd.length < 6) return showToast('密码不少于6位');
   try {
@@ -378,6 +399,7 @@ function switchTab(tab) {
 
 function goBack() {
   document.getElementById('backBtn').classList.remove('show');
+  if (currentPage==="worker-detail") { switchTab("admin"); return; }
   switchTab(currentPage);
 }
 
@@ -634,6 +656,10 @@ function calcPay() {
 }
 
 async function saveVisit() {
+  if (currentEditId) {
+    try { await dbAction("visits","readwrite",function(s){s.delete(currentEditId);}); } catch(e) {}
+    currentEditId = null;
+  }
   var name = document.getElementById('v-name').value.trim();
   var addr = document.getElementById('v-addr').value.trim();
   var surname = document.getElementById('v-surname').value.trim();
@@ -1077,6 +1103,72 @@ async function submitResource() {
   } catch(e) { showToast('上传失败'); }
 }
 
+
+function showFullImage(src) {
+  var o = document.createElement("div");
+  o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer";
+  o.innerHTML = "<img src=\"+src+"\" style=\"max-width:95%;max-height:95%;border-radius:8px\"><div style=\"position:absolute;top:20px;right:20px;color:#fff;font-size:30px;cursor:pointer\" onclick=\"this.parentElement.remove()\">X</div>";
+  o.onclick = function() { o.remove(); };
+  document.body.appendChild(o);
+}
+function downloadFile(src, name) {
+  var a = document.createElement("a"); a.href = src; a.download = name || "download"; a.click();
+}
+function filterRecords(type) {
+  sessionStorage.setItem("record_filter", type); switchTab("records");
+}
+var currentEditId = null;
+async function editVisit(id) {
+  currentEditId = id; switchTab("visit");
+  await new Promise(function(ok) { setTimeout(ok, 500); });
+  var visits = await dbAction("visits", "readonly", function(s, ok) {
+    var r = s.get(id); r.onsuccess = function() { ok(r.result); };
+  });
+  if (!visits) return;
+  setTimeout(function() {
+    var m = {v_name:"storeName",v_addr:"storeAddr",v_type:"storeType",v_surname:"surname",
+      v_fullname:"fullname",v_phone:"contactPhone",v_wechat:"wechat",
+      v_intent:"intent",v_qrcode:"qrcode",v_note:"note"};
+    for (var k in m) {
+      var el = document.getElementById(k);
+      if (el) el.value = visits[m[k]]||"";
+    }
+    var needs = visits.needs||[];
+    var cbx = ["need-tuoke","need-zhaopin","need-yeji","need-xinpin"];
+    var nd = ["拓客","招聘","做业绩","新品项"];
+    for (var i=0;i<cbx.length;i++) {
+      var el = document.getElementById(cbx[i]);
+      if (el) el.checked = needs.indexOf(nd[i]) >= 0;
+    }
+    showToast("编辑模式，修改后重新保存");
+  }, 200);
+}
+async function renderAdminWorkerDetail(phone) {
+  var allU = await dbAction("users","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var worker = null;
+  for (var i=0;i<allU.length;i++) { if (allU[i].phone===phone) { worker=allU[i]; break; } }
+  if (!worker) { showToast("员工不存在"); return; }
+  document.getElementById("pageTitle").textContent = worker.name + " 的详情";
+  document.getElementById("backBtn").classList.add("show");
+  currentPage = "worker-detail";
+  var visits = await dbAction("visits","readonly",function(s,ok){var idx=s.index("phone");var r=idx.getAll(IDBKeyRange.only(phone));r.onsuccess=function(){ok(r.result||[]);};});
+  var checkins = await dbAction("checkins","readonly",function(s,ok){var idx=s.index("phone");var r=idx.getAll(IDBKeyRange.only(phone));r.onsuccess=function(){ok(r.result||[]);};});
+  var today = new Date().toISOString().split("T")[0];
+  var tV = visits.filter(function(v){return v.date===today;});
+  var tP = visits.reduce(function(s,v){return s+(v.earnings||0);},0);
+  var html = "<div class=\"card\"><h3>员工详情</h3><div style=\"font-size:13px;line-height:2\"><strong>姓名：</strong>"+worker.name+"<br><strong>手机：</strong>"+worker.phone+"<br><strong>累计陌拜：</strong>"+visits.length+"家<br><strong>今日陌拜：</strong>"+tV.length+"家<br><strong>累计收入：</strong>¥"+tP.toFixed(2)+"</div></div>";
+  html += "<div class=\"card\"><h3>签到记录</h3>";
+  checkins.sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(ch){
+    var loc = ch.location ? (ch.location.lat.toFixed(4)+","+ch.location.lng.toFixed(4)) : "无位置";
+    html += "<div style=\"font-size:11px;padding:4px 0;border-bottom:1px solid #f0f0f0\">"+ch.date+" "+ch.time+" <span style=\"color:#888\">"+loc+"</span></div>";
+  });
+  html += "</div><div class=\"card\"><h3>陌拜记录</h3>";
+  visits.sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);}).forEach(function(v){
+    html += "<div class=\"visit-item\" style=\"margin-bottom:6px;padding:10px\"><div class=\"v-name\">"+(v.surname||"")+"总·"+escHtml(v.storeName)+"</div><div class=\"v-meta\"><span>¥"+(v.earnings||0).toFixed(1)+"</span><span>"+v.date+"</span></div></div>";
+  });
+  html += "</div>";
+  document.getElementById("mainContent").innerHTML = html;
+}
 // ====== Init ======
 async function init() {
   try {
