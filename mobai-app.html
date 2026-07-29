@@ -993,7 +993,7 @@ async function renderMoments() {
         html += "</div>";
       }
       // Comment input
-      html += "<div style=\"display:flex;gap:6px;margin-top:6px\"><input type=\"text\" id=\"comment-input-"+p.id+"\" placeholder=\"写评论...\" style=\"flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px\"><button class=\"btn btn-sm btn-primary\" style=\"padding:6px 12px;width:auto\" onclick=\"submitComment("+p.id+")\">+(p.phone===currentUser.phone||currentUser.role==="admin"?"<button class="btn btn-sm btn-danger" style="padding:6px 10px;margin-left:4px;font-size:10px" onclick="deletePost("+p.id+")">\uD83D\uDDD1 删除</button>":"")发送</button></div></div>";
+      html += "<div style=\"display:flex;gap:6px;margin-top:6px\"><input type=\"text\" id=\"comment-input-"+p.id+"\" placeholder=\"写评论...\" style=\"flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px\"><button class=\"btn btn-sm btn-primary\" style=\"padding:6px 12px;width:auto\" onclick=\"submitComment("+p.id+")\">发送</button>"+(p.phone===currentUser.phone||currentUser.role==="admin"?"<button class=\"btn btn-sm btn-danger\" style=\"padding:6px 10px;margin-left:4px;font-size:10px\" onclick=\"deletePost("+p.id+")\">🗑 删除</button>":"")+"</div></div>";
     });
   }
   content.innerHTML = html;
