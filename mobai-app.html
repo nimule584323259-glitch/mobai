@@ -399,7 +399,7 @@ function switchTab(tab) {
 
 function goBack() {
   document.getElementById('backBtn').classList.remove('show');
-  if (currentPage==="worker-detail"||currentPage==="visit-detail"||currentPage==="filtered-records") { switchTab("admin"); return; }
+  if (currentPage==="worker-detail"||currentPage==="visit-detail"||currentPage==="filtered-records"||currentPage==="admin-filter") { switchTab("admin"); return; }
   switchTab(currentPage);
 }
 
@@ -943,6 +943,72 @@ async function renderAdmin() {
   content.innerHTML = html;
 }
 
+
+async function adminFilter(type) {
+  document.getElementById("pageTitle").textContent = {all:"\u7d2f\u8ba1\u964c\u62dc",today:"\u4eca\u65e5\u964c\u62dc",checkins:"\u7b7e\u5230\u8bb0\u5f55",workers:"\u964c\u62dc\u5458"}[type]||"\u7ba1\u7406\u540e\u53f0";
+  document.getElementById("backBtn").classList.add("show");
+  currentPage = "admin-filter";
+  var users = await dbAction("users","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var visits = await dbAction("visits","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var checkins = await dbAction("checkins","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var today = new Date().toISOString().split("T")[0];
+  var workers = users.filter(function(u){return u.role==="worker";});
+  var html = "";
+  if (type==="all") {
+    html += "<div class=\"card\"><h3>\u6240\u6709\u964c\u62dc\u5458\u7d2f\u8ba1\u6570\u636e</h3>";
+    workers.forEach(function(w){
+      var wv = visits.filter(function(v){return v.phone===w.phone;});
+      var total = wv.reduce(function(s,v){return s+(v.earnings||0);},0);
+      html += "<div style=\"display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px\"><span>"+escHtml(w.name)+"</span><span>\u964c\u62dc "+wv.length+"\u5bb6 | \u00a5"+total.toFixed(2)+"</span></div>";
+    });
+    html += "</div>";
+  } else if (type==="today") {
+    html += "<div class=\"card\"><h3>\u4eca\u65e5\u964c\u62dc\u7edf\u8ba1</h3>";
+    workers.forEach(function(w){
+      var wv = visits.filter(function(v){return v.phone===w.phone&&v.date===today;});
+      var total = wv.reduce(function(s,v){return s+(v.earnings||0);},0);
+      html += "<div style=\"display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px\"><span>"+escHtml(w.name)+"</span><span>\u4eca\u65e5 "+wv.length+"\u5bb6 | \u00a5"+total.toFixed(2)+"</span></div>";
+    });
+    html += "</div>";
+  } else if (type==="checkins") {
+    html += "<div class=\"card\"><h3>\u4eca\u65e5\u7b7e\u5230\u60c5\u51b5</h3>";
+    workers.forEach(function(w){
+      var checked = checkins.some(function(c){return c.phone===w.phone&&c.date===today;});
+      var loc = "";
+      var ck = checkins.filter(function(c){return c.phone===w.phone&&c.date===today;});
+      if (ck.length>0 && ck[0].location) loc = " ("+ck[0].location.lat.toFixed(2)+","+ck[0].location.lng.toFixed(2)+")";
+      html += "<div style=\"display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px\"><span>"+(checked?"\u2705":"\u274c")+" "+escHtml(w.name)+"</span><span style=\"color:#888;font-size:11px\">"+loc+"</span></div>";
+    });
+    html += "</div>";
+  } else if (type==="workers") {
+    html += "<div class=\"card\"><h3>\u6240\u6709\u964c\u62dc\u5458</h3>";
+    workers.forEach(function(w){
+      html += "<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px\"><span>"+escHtml(w.name)+"</span><button class=\"btn btn-sm btn-outline\" style=\"padding:4px 10px;font-size:11px\" onclick=\"viewWorker(\""+w.phone+"\")\">\u67e5\u770b\u8be6\u60c5</button></div>";
+    });
+    html += "</div>";
+  }
+  document.getElementById("mainContent").innerHTML = html;
+}
+async function showExpense(type) {
+  document.getElementById("pageTitle").textContent = type==="all"?"\u603b\u652f\u51fa":"\u4eca\u65e5\u652f\u51fa";
+  document.getElementById("backBtn").classList.add("show");
+  currentPage = "admin-filter";
+  var users = await dbAction("users","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var visits = await dbAction("visits","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var today = new Date().toISOString().split("T")[0];
+  var workers = users.filter(function(u){return u.role==="worker";});
+  var totalAll = 0;
+  var html = "<div class=\"card\"><h3>"+(type==="all"?"\u5386\u53f2\u652f\u51fa\u660e\u7ec6":"\u4eca\u65e5\u652f\u51fa\u660e\u7ec6")+"</h3>";
+  workers.forEach(function(w){
+    var wv = visits.filter(function(v){return v.phone===w.phone&&(type==="all"?true:v.date===today);});
+    var total = wv.reduce(function(s,v){return s+(v.earnings||0);},0);
+    totalAll += total;
+    html += "<div style=\"display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px\"><span>"+escHtml(w.name)+"</span><span style=\"color:var(--accent);font-weight:600\">\u00a5"+total.toFixed(2)+"</span></div>";
+  });
+  html += "<div style=\"display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700\"><span>\u5408\u8ba1</span><span style=\"color:var(--accent)\">\u00a5"+totalAll.toFixed(2)+"</span></div>";
+  html += "</div>";
+  document.getElementById("mainContent").innerHTML = html;
+}
 function viewWorker(phone) {
   showToast('查看员工详情功能开发中');
 }
