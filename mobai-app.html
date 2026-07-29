@@ -422,9 +422,9 @@ async function renderHome() {
   var totalEarnings = myVisits.reduce(function(s, v) { return s + (v.earnings||0); }, 0);
 
   var html = '<div class="card"><h3>📊 工作概览</h3><div class="stat-row">'+
-    '<div class="stat-item"><div class="num">'+myVisits.length+'</div><div class="lbl">累计陌拜</div></div>'+
-    '<div class="stat-item"><div class="num">'+todayVisits.length+'</div><div class="lbl">今日陌拜</div></div>'+
-    '<div class="stat-item"><div class="num">'+weekVisits.length+'</div><div class="lbl">本周陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('all')"><div class="num">'+myVisits.length+'</div><div class="lbl">累计陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('today')"><div class="num">'+todayVisits.length+'</div><div class="lbl">今日陌拜</div></div>'+
+    '<div class="stat-item" style="cursor:pointer" onclick="filterRecords('week')"><div class="num">'+weekVisits.length+'</div><div class="lbl">本周陌拜</div></div>'+
     '<div class="stat-item"><div class="num">'+totalEarnings.toFixed(1)+'</div><div class="lbl">总收入(元)</div></div>'+
   '</div></div>';
 
@@ -1189,7 +1189,53 @@ function downloadFile(src, name) {
   var a = document.createElement("a"); a.href = src; a.download = name || "download"; a.click();
 }
 function filterRecords(type) {
-  sessionStorage.setItem("record_filter", type); switchTab("records");
+  currentPage = "filtered-records";
+  renderFilteredRecords(type);
+}
+async function renderFilteredRecords(type) {
+  document.getElementById("pageTitle").textContent = {all:"全部记录",today:"今日陌拜",week:"本周陌拜",lastweek:"上周陌拜",month:"本月陌拜",lastmonth:"上月陌拜"}[type]||"陌拜记录";
+  document.getElementById("backBtn").classList.add("show");
+  var allVisits = await dbAction("visits","readonly",function(s,ok){var r=s.getAll();r.onsuccess=function(){ok(r.result||[]);};});
+  var myVisits = allVisits.filter(function(v){return v.phone===currentUser.phone;});
+  var now = new Date();
+  var today = now.toISOString().split("T")[0];
+  var weekStart = new Date(now); weekStart.setDate(now.getDate()-now.getDay());
+  weekStart = weekStart.toISOString().split("T")[0];
+  var lastWeekStart = new Date(now); lastWeekStart.setDate(now.getDate()-now.getDay()-7);
+  lastWeekStart = lastWeekStart.toISOString().split("T")[0];
+  var monthStart = new Date(now.getFullYear(),now.getMonth(),1).toISOString().split("T")[0];
+  var lastMonthStart = new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split("T")[0];
+  var lastMonthEnd = new Date(now.getFullYear(),now.getMonth(),0).toISOString().split("T")[0];
+  var filtered = [];
+  if (type==="today") filtered = myVisits.filter(function(v){return v.date===today;});
+  else if (type==="week") filtered = myVisits.filter(function(v){return v.date>=weekStart;});
+  else if (type==="lastweek") filtered = myVisits.filter(function(v){return v.date>=lastWeekStart&&v.date<weekStart;});
+  else if (type==="month") filtered = myVisits.filter(function(v){return v.date>=monthStart;});
+  else if (type==="lastmonth") filtered = myVisits.filter(function(v){return v.date>=lastMonthStart&&v.date<=lastMonthEnd;});
+  else filtered = myVisits;
+  filtered.sort(function(a,b){return b.timestamp.localeCompare(a.timestamp);});
+  var intents = {S:"强烈",A:"有意向",B:"一般",C:"拒绝"};
+  var totalPay = filtered.reduce(function(s,v){return s+(v.earnings||0);},0);
+  var html = "<div class=\"card\"><div style=\"display:flex;gap:6px;flex-wrap:wrap\">"+
+    "<button class=\"btn btn-sm "+(type==="all"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'all\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">全部</button>"+
+    "<button class=\"btn btn-sm "+(type==="today"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'today\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">今日</button>"+
+    "<button class=\"btn btn-sm "+(type==="week"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'week\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">本周</button>"+
+    "<button class=\"btn btn-sm "+(type==="lastweek"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'lastweek\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">上周</button>"+
+    "<button class=\"btn btn-sm "+(type==="month"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'month\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">本月</button>"+
+    "<button class=\"btn btn-sm "+(type==="lastmonth"?"btn-primary":"btn-outline")+"\" onclick=\"filterRecords(\'lastmonth\')\" style=\"flex:1;min-width:50px;padding:6px;font-size:11px\">上月</button>"+
+    "</div><div style=\"margin-top:8px;font-size:12px;color:#888\">共 "+filtered.length+" 条，酬劳 ¥"+totalPay.toFixed(2)+"</div></div>";
+  if (filtered.length===0) {
+    html += "<div class=\"empty-state\"><div class=\"icon\">\U0001f4ed</div><p>暂无记录</p></div>";
+  } else {
+    filtered.forEach(function(v){
+      html += "<div class=\"visit-item\" style=\"cursor:pointer\" onclick=\"viewVisitDetail("+v.id+")\"><div class=\"v-name\">"+(v.surname||"")+"总·"+escHtml(v.storeName)+"</div>"+
+        "<div class=\"v-addr\">"+escHtml(v.storeAddr)+"</div>"+
+        "<div class=\"v-meta\"><span class=\"v-tag "+(v.intent||"b").toLowerCase()+"\">"+(intents[v.intent]||"一般")+"</span>"+
+        "<span class=\"v-tag\">¥"+(v.earnings||0).toFixed(1)+"</span>"+
+        "<span class=\"v-tag\">"+v.date+"</span></div></div>";
+    });
+  }
+  document.getElementById("mainContent").innerHTML = html;
 }
 var currentEditId = null;
 async function editVisit(id) {
