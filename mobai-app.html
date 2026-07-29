@@ -1258,6 +1258,8 @@ async function viewVisitDetail(id) {
   document.getElementById("mainContent").innerHTML = html;
 }
 
+function deletePost(id){if(currentUser.role!=="admin")return showToast("仅管理者可删除");if(!confirm("确认删除？"))return;dbAction("posts","readwrite",function(s){s.delete(id);}).then(function(){renderMoments();showToast("已删除");});}
+
 function submitComment(postId) {
   var input = document.getElementById("comment-input-"+postId);
   if (!input||!input.value.trim()) return;
