@@ -1,0 +1,860 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>陌拜通 · 美业采集助手</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231a1a2e'/%3E%3Ctext x='50' y='68' font-size='50' text-anchor='middle' fill='%23fff'%3E陌%3C/text%3E%3C/svg%3E">
+<style>
+:root{--primary:#1a1a2e;--primary-light:#16213e;--accent:#e94560;--success:#27ae60;--warning:#f39c12;--danger:#e74c3c;--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--text2:#666;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,.08)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+/* Splash / Auth */
+#splash{position:fixed;inset:0;background:var(--primary);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;transition:opacity .5s}
+#splash.hide{opacity:0;pointer-events:none}
+#splash .logo{font-size:48px;margin-bottom:8px}
+#splash h1{font-size:22px;font-weight:700;letter-spacing:2px}
+#splash p{font-size:13px;opacity:.7;margin-top:4px}
+#splash .loader{margin-top:24px;width:32px;height:32px;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Auth Page */
+.page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.page.active{display:flex;flex-direction:column}
+#auth-page{background:linear-gradient(135deg,var(--primary),#0f3460);justify-content:center;align-items:center;padding:24px}
+.auth-box{width:100%;max-width:360px}
+.auth-logo{text-align:center;margin-bottom:24px;color:#fff}
+.auth-logo .icon{font-size:48px}
+.auth-logo h1{font-size:20px;font-weight:700;margin-top:6px;letter-spacing:2px}
+.auth-logo p{font-size:12px;opacity:.7;margin-top:4px}
+.auth-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.auth-card h2{font-size:16px;font-weight:600;margin-bottom:16px;text-align:center}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:4px}
+.field label .req{color:var(--danger)}
+.field input,.field select{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;background:#fafafa;transition:border .2s}
+.field input:focus,.field select:focus{border-color:var(--primary);background:#fff}
+.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:active{opacity:.85}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary)}
+.btn-sm{padding:8px;font-size:12px}
+.btn-block{display:block;width:100%}
+.auth-switch{text-align:center;margin-top:12px;font-size:12px;color:var(--text2)}
+.auth-switch a{color:var(--primary);font-weight:600;cursor:pointer}
+
+/* Main Layout */
+#main-layout{display:none;height:100%;flex-direction:column}
+#main-layout.active{display:flex}
+.top-bar{background:var(--primary);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;min-height:50px}
+.top-bar .back-btn{font-size:20px;cursor:pointer;padding:4px;display:none}
+.top-bar .back-btn.show{display:block}
+.top-bar .title{font-size:15px;font-weight:600;flex:1}
+.top-bar .user-info{font-size:11px;opacity:.8;display:flex;align-items:center;gap:6px}
+.top-bar .user-info .role-badge{background:var(--accent);color:#fff;font-size:9px;padding:1px 6px;border-radius:4px}
+.main-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;padding-bottom:70px}
+
+/* Bottom Tab Bar */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid #eee;display:flex;padding:4px 0 env(safe-area-inset-bottom);z-index:100}
+.tab-item{flex:1;text-align:center;padding:4px 0;font-size:10px;color:#999;cursor:pointer;transition:color .2s}
+.tab-item .tab-icon{font-size:20px;display:block;margin-bottom:1px}
+.tab-item.active{color:var(--primary);font-weight:600}
+.tab-item.active .tab-icon{color:var(--accent)}
+
+/* Cards */
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.card h3{font-size:14px;font-weight:600;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0}
+.card .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px}
+.card .stat-item{text-align:center;padding:8px}
+.card .stat-item .num{font-size:22px;font-weight:700;color:var(--primary)}
+.card .stat-item .lbl{font-size:10px;color:var(--text2);margin-top:2px}
+
+/* Check-in */
+.checkin-btn{display:flex;align-items:center;gap:12px;padding:16px;border-radius:var(--radius);cursor:pointer;transition:all .2s}
+.checkin-btn.ready{background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff}
+.checkin-btn.done{background:#eee;color:#999}
+.checkin-btn .icon{font-size:28px}
+.checkin-btn .info{flex:1}
+.checkin-btn .info .title{font-size:15px;font-weight:600}
+.checkin-btn .info .sub{font-size:11px;opacity:.8;margin-top:2px}
+
+/* Visit List */
+.visit-item{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:8px;box-shadow:var(--shadow);position:relative;border-left:3px solid var(--accent)}
+.visit-item .v-name{font-size:14px;font-weight:600}
+.visit-item .v-addr{font-size:11px;color:var(--text2);margin-top:2px}
+.visit-item .v-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.visit-item .v-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#f0f0f0;color:#555}
+.visit-item .v-tag.s{background:#d4edda;color:#155724}
+.visit-item .v-tag.a{background:#cce5ff;color:#004085}
+.visit-item .v-tag.b{background:#fff3cd;color:#856404}
+.visit-item .v-tag.c{background:#f8d7da;color:#721c24}
+.visit-item .v-pay{position:absolute;top:10px;right:10px;font-size:16px;font-weight:700;color:var(--success)}
+
+/* Admin */
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.admin-grid .card{padding:12px;margin:0}
+.admin-worker{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:8px;margin-bottom:6px;box-shadow:var(--shadow)}
+.admin-worker .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.admin-worker .status-dot.online{background:var(--success)}
+.admin-worker .status-dot.offline{background:#ccc}
+.admin-worker .status-dot.working{background:var(--warning)}
+.admin-worker .w-info{flex:1}
+.admin-worker .w-info .w-name{font-size:13px;font-weight:600}
+.admin-worker .w-info .w-stat{font-size:10px;color:var(--text2);margin-top:1px}
+.admin-worker .w-actions{display:flex;gap:4px}
+.admin-worker .w-actions button{font-size:10px;padding:4px 8px;border:none;border-radius:4px;cursor:pointer}
+
+/* Forms */
+.form-section{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.form-section h3{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--primary)}
+.form-section .field{margin-bottom:12px}
+.form-section .field:last-child{margin-bottom:0}
+
+/* Photo Upload */
+.photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.photo-slot{aspect-ratio:1;border:2px dashed #ddd;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#bbb;cursor:pointer;overflow:hidden;position:relative}
+.photo-slot.has-photo{border-color:var(--success);border-style:solid}
+.photo-slot img{width:100%;height:100%;object-fit:cover}
+.photo-slot .slot-label{font-size:8px;margin-top:2px}
+.photo-slot .check{position:absolute;top:2px;right:2px;background:var(--success);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center}
+
+/* Location */
+.location-display{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f5f5f5;border-radius:6px;font-size:11px;color:var(--text2)}
+.location-display .loc-icon{font-size:16px}
+.location-display .loc-text{flex:1}
+
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:320px;text-align:center}
+.toast.show{opacity:1}
+
+/* Empty */
+.empty-state{text-align:center;padding:40px 20px;color:#aaa}
+.empty-state .icon{font-size:40px;margin-bottom:8px}
+.empty-state p{font-size:13px}
+
+/* Scrollbar */
+.main-content::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<!-- Splash Screen -->
+<div id="splash">
+  <div class="logo">📍</div>
+  <h1>陌拜通</h1>
+  <p>美业采集助手</p>
+  <div class="loader"></div>
+</div>
+
+<!-- Auth Page -->
+<div id="auth-page" class="page active">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="icon">📍</div>
+      <h1>陌拜通</h1>
+      <p>郑州美业 · 陌拜采集管理系统</p>
+    </div>
+    <div class="auth-card" id="login-form">
+      <h2>登录</h2>
+      <div class="field"><label><span class="req">*</span> 手机号</label><input type="tel" id="login-phone" placeholder="11位手机号" maxlength="11"></div>
+      <div class="field"><label><span class="req">*</span> 密码</label><input type="password" id="login-pwd" placeholder="请输入密码"></div>
+      <button class="btn btn-primary btn-block" onclick="login()">登 录</button>
+      <div class="auth-switch">还没有账号？<a onclick="showRegister()">立即注册</a></div>
+    </div>
+    <div class="auth-card" id="register-form" style="display:none">
+      <h2>注册</h2>
+      <div class="field"><label><span class="req">*</span> 真实姓名</label><input type="text" id="reg-name" placeholder="请输入真实姓名"></div>
+      <div class="field"><label><span class="req">*</span> 手机号</label><input type="tel" id="reg-phone" placeholder="11位手机号" maxlength="11"></div>
+      <div class="field"><label><span class="req">*</span> 身份证号</label><input type="text" id="reg-id" placeholder="18位身份证号" maxlength="18"></div>
+      <div class="field"><label><span class="req">*</span> 设置密码</label><input type="password" id="reg-pwd" placeholder="不少于6位"></div>
+      <div class="field"><label>角色</label>
+        <select id="reg-role"><option value="worker">陌拜员</option><option value="admin">管理者</option></select>
+      </div>
+      <button class="btn btn-success btn-block" onclick="register()">注 册</button>
+      <div class="auth-switch">已有账号？<a onclick="showLogin()">去登录</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Layout -->
+<div id="main-layout">
+  <div class="top-bar">
+    <span class="back-btn" id="backBtn" onclick="goBack()">‹</span>
+    <span class="title" id="pageTitle">陌拜通</span>
+    <div class="user-info"><span id="userName"></span><span class="role-badge" id="userRole"></span></div>
+  </div>
+  <div class="main-content" id="mainContent"></div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar" id="tabBar">
+  <div class="tab-item active" data-tab="home" onclick="switchTab('home')"><span class="tab-icon">🏠</span>首页</div>
+  <div class="tab-item" data-tab="checkin" onclick="switchTab('checkin')"><span class="tab-icon">✅</span>签到</div>
+  <div class="tab-item" data-tab="visit" onclick="switchTab('visit')"><span class="tab-icon">📝</span>上报</div>
+  <div class="tab-item" data-tab="records" onclick="switchTab('records')"><span class="tab-icon">📋</span>记录</div>
+  <div class="tab-item" data-tab="profile" onclick="switchTab('profile')"><span class="tab-icon">👤</span>我的</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== App State ======
+var DB_NAME = 'mobai_db';
+var DB_VER = 1;
+var db = null;
+var currentUser = null;
+var currentPage = 'home';
+var currentVisit = null;
+var locationCache = null;
+var photoData = {};
+
+// ====== IndexedDB ======
+function openDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = function(e) {
+      var d = e.target.result;
+      if (!d.objectStoreNames.contains('users')) {
+        var us = d.createObjectStore('users', { keyPath: 'phone' });
+        us.createIndex('role', 'role', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('checkins')) {
+        var cs = d.createObjectStore('checkins', { keyPath: 'id', autoIncrement: true });
+        cs.createIndex('phone', 'phone', { unique: false });
+        cs.createIndex('date', 'date', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('visits')) {
+        var vs = d.createObjectStore('visits', { keyPath: 'id', autoIncrement: true });
+        vs.createIndex('phone', 'phone', { unique: false });
+        vs.createIndex('date', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror = function(e) { reject(e.target.error); };
+  });
+}
+
+function dbAction(store, mode, fn) {
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction(store, mode);
+    var s = tx.objectStore(store);
+    fn(s, resolve, reject);
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function(e) { reject(e.target.error); };
+  });
+}
+
+// ====== Toast ======
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+// ====== Geo Location ======
+function getLocation() {
+  return new Promise(function(resolve) {
+    if (locationCache) { resolve(locationCache); return; }
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      locationCache = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      resolve(locationCache);
+    }, function() { resolve(null); }, { timeout: 5000, enableHighAccuracy: true });
+  });
+}
+
+// ====== Auth ======
+function showRegister() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+}
+function showLogin() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('register-form').style.display = 'none';
+}
+async function register() {
+  var name = document.getElementById('reg-name').value.trim();
+  var phone = document.getElementById('reg-phone').value.trim();
+  var idNum = document.getElementById('reg-id').value.trim();
+  var pwd = document.getElementById('reg-pwd').value;
+  var role = document.getElementById('reg-role').value;
+  if (!name || !phone || !idNum || !pwd) return showToast('请填写完整信息');
+  if (phone.length < 11) return showToast('手机号格式不对');
+  if (idNum.length < 18) return showToast('身份证号格式不对');
+  if (pwd.length < 6) return showToast('密码不少于6位');
+  try {
+    var existing = await dbAction('users', 'readonly', function(s, ok) {
+      var r = s.get(phone);
+      r.onsuccess = function() { ok(r.result); };
+    });
+    if (existing) return showToast('该手机号已注册');
+    var user = { phone: phone, name: name, idNumber: idNum, password: pwd, role: role,
+      createdAt: new Date().toISOString(), totalVisits: 0, totalEarnings: 0 };
+    await dbAction('users', 'readwrite', function(s) { s.add(user); });
+    showToast('注册成功！请登录');
+    showLogin();
+    document.getElementById('login-phone').value = phone;
+  } catch(e) { showToast('注册失败: ' + e.message); }
+}
+
+async function login() {
+  var phone = document.getElementById('login-phone').value.trim();
+  var pwd = document.getElementById('login-pwd').value;
+  if (!phone || !pwd) return showToast('请填写手机号和密码');
+  try {
+    var user = await dbAction('users', 'readonly', function(s, ok) {
+      var r = s.get(phone);
+      r.onsuccess = function() { ok(r.result); };
+    });
+    if (!user) return showToast('账号不存在');
+    if (user.password !== pwd) return showToast('密码错误');
+    currentUser = user;
+    document.getElementById('splash').classList.add('hide');
+    document.getElementById('auth-page').classList.remove('active');
+    document.getElementById('main-layout').classList.add('active');
+    document.getElementById('userName').textContent = user.name;
+    document.getElementById('userRole').textContent = user.role === 'admin' ? '管理者' : '陌拜员';
+    if (user.role === 'admin') showAdminTab();
+    renderHome();
+  } catch(e) { showToast('登录失败: ' + e.message); }
+}
+
+function showAdminTab() {
+  var tabs = document.querySelectorAll('.tab-item');
+  // Show admin tab (replace profile with admin if admin)
+}
+
+// ====== Tab System ======
+function switchTab(tab) {
+  currentPage = tab;
+  document.querySelectorAll('.tab-item').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  document.getElementById('backBtn').classList.remove('show');
+  var titles = { home: '陌拜通', checkin: '每日签到', visit: '陌拜上报', records: '工作记录', profile: '个人中心', admin: '管理后台' };
+  document.getElementById('pageTitle').textContent = titles[tab] || '陌拜通';
+  if (tab === 'home') renderHome();
+  else if (tab === 'checkin') renderCheckin();
+  else if (tab === 'visit') renderVisitForm();
+  else if (tab === 'records') renderRecords();
+  else if (tab === 'profile') renderProfile();
+  else if (tab === 'admin') renderAdmin();
+}
+
+function goBack() {
+  document.getElementById('backBtn').classList.remove('show');
+  switchTab(currentPage);
+}
+
+// ====== Render: Home ======
+async function renderHome() {
+  var content = document.getElementById('mainContent');
+  var today = new Date().toISOString().split('T')[0];
+  var visits = await dbAction('visits', 'readonly', function(s, ok) {
+    var r = s.getAll();
+    r.onsuccess = function() { ok(r.result || []); };
+  });
+  var myVisits = (visits||[]).filter(function(v) { return v.phone === currentUser.phone; });
+  var todayVisits = myVisits.filter(function(v) { return v.date === today; });
+  var weekVisits = myVisits.filter(function(v) {
+    var d = new Date(v.date);
+    var now = new Date();
+    var weekAgo = new Date(now.getTime() - 7*24*60*60*1000);
+    return d >= weekAgo;
+  });
+  var totalEarnings = myVisits.reduce(function(s, v) { return s + (v.earnings||0); }, 0);
+
+  var html = '<div class="card"><h3>📊 工作概览</h3><div class="stat-row">'+
+    '<div class="stat-item"><div class="num">'+myVisits.length+'</div><div class="lbl">累计陌拜</div></div>'+
+    '<div class="stat-item"><div class="num">'+todayVisits.length+'</div><div class="lbl">今日陌拜</div></div>'+
+    '<div class="stat-item"><div class="num">'+weekVisits.length+'</div><div class="lbl">本周陌拜</div></div>'+
+    '<div class="stat-item"><div class="num">'+totalEarnings.toFixed(1)+'</div><div class="lbl">总收入(元)</div></div>'+
+  '</div></div>';
+
+  // Check-in status
+  var checkedIn = await dbAction('checkins', 'readonly', function(s, ok) {
+    var idx = s.index('phone');
+    var r = idx.getAll(IDBKeyRange.only(currentUser.phone));
+    r.onsuccess = function() {
+      var list = (r.result||[]).filter(function(c) { return c.date === today; });
+      ok(list.length > 0);
+    };
+  });
+  if (checkedIn) {
+    html += '<div class="checkin-btn done"><div class="icon">✅</div><div class="info"><div class="title">今日已签到</div><div class="sub">'+today+'</div></div></div>';
+  } else {
+    html += '<div class="checkin-btn ready" onclick="doCheckin()"><div class="icon">📍</div><div class="info"><div class="title">点击签到打卡</div><div class="sub">记录当前位置，开始今天的工作</div></div><div style="font-size:12px">去签到 →</div></div>';
+  }
+
+  // Quick actions
+  html += '<div class="card"><h3>⚡ 快捷操作</h3>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    '<button class="btn btn-primary btn-sm" onclick="switchTab(\'visit\')">📝 新建陌拜</button>'+
+    '<button class="btn btn-outline btn-sm" onclick="switchTab(\'records\')">📋 查看记录</button>'+
+    (currentUser.role === 'admin' ? '<button class="btn btn-success btn-sm" onclick="switchTab(\'admin\')">📊 管理后台</button>' : '')+
+    '</div></div>';
+
+  // Recent visits
+  html += '<div class="card"><h3>最近陌拜</h3>';
+  var recent = myVisits.slice(-5).reverse();
+  if (recent.length === 0) {
+    html += '<div class="empty-state"><div class="icon">📭</div><p>还没有陌拜记录<br>点击上方「新建陌拜」开始</p></div>';
+  } else {
+    recent.forEach(function(v) {
+      var intents = {S:'强烈',A:'有意向',B:'一般',C:'拒绝'};
+      html += '<div class="visit-item" style="margin-bottom:6px;padding:10px">'+
+        '<div class="v-name">'+(v.surname||'')+'总 · '+escHtml(v.storeName)+'</div>'+
+        '<div class="v-addr">'+escHtml(v.storeAddr)+'</div>'+
+        '<div class="v-meta"><span class="v-tag '+(v.intent||'b').toLowerCase()+'">'+(intents[v.intent]||'一般')+'</span>'+
+        '<span class="v-tag">💰 '+(v.earnings||0).toFixed(1)+'元</span>'+
+        '<span class="v-tag">📸 '+(v.photosCount||0)+'张</span></div></div>';
+    });
+  }
+  html += '</div>';
+  content.innerHTML = html;
+}
+// ====== Check-in ======
+async function renderCheckin() {
+  var content = document.getElementById('mainContent');
+  var today = new Date().toISOString().split('T')[0];
+  var checkedIn = await dbAction('checkins', 'readonly', function(s, ok) {
+    var idx = s.index('phone');
+    var r = idx.getAll(IDBKeyRange.only(currentUser.phone));
+    r.onsuccess = function() {
+      var list = (r.result||[]).filter(function(c) { return c.date === today; });
+      ok(list.length > 0);
+    };
+  });
+
+  var now = new Date();
+  var timeStr = now.toLocaleString('zh-CN', { hour12: false });
+  
+  var html = '<div class="card" style="text-align:center;padding:24px">';
+  if (checkedIn) {
+    html += '<div style="font-size:48px;margin-bottom:10px">✅</div>'+
+      '<h3 style="font-size:18px;margin-bottom:4px">今日已签到</h3>'+
+      '<p style="color:var(--text2);font-size:12px">'+today+'</p>'+
+      '<div style="margin-top:12px;padding:8px;background:#f5f5f5;border-radius:8px;font-size:12px;color:#666">'+
+      '签到时间：'+timeStr+'</div>';
+  } else {
+    html += '<div style="font-size:48px;margin-bottom:10px">📍</div>'+
+      '<h3 style="font-size:18px;margin-bottom:4px">今日还未签到</h3>'+
+      '<p style="color:var(--text2);font-size:12px">签到后将开始记录今天的工作</p>'+
+      '<button class="btn btn-success" style="margin-top:16px" onclick="doCheckin()">📍 立即签到打卡</button>';
+  }
+  html += '</div>';
+
+  // Show check-in history
+  html += '<div class="card"><h3>签到记录</h3>';
+  var allCheckins = await dbAction('checkins', 'readonly', function(s, ok) {
+    var idx = s.index('phone');
+    var r = idx.getAll(IDBKeyRange.only(currentUser.phone));
+    r.onsuccess = function() { ok(r.result || []); };
+  });
+  var recent = (allCheckins||[]).sort(function(a,b) { return b.date.localeCompare(a.date); }).slice(0,14);
+  if (recent.length === 0) {
+    html += '<div class="empty-state"><p>暂无签到记录</p></div>';
+  } else {
+    recent.forEach(function(c) {
+      var d = new Date(c.date);
+      var weekdays = ['日','一','二','三','四','五','六'];
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0">'+
+        '<div style="font-size:20px">✅</div>'+
+        '<div style="flex:1"><div style="font-size:13px;font-weight:500">'+(c.date||'')+' 周'+weekdays[d.getDay()]+'</div>'+
+        '<div style="font-size:10px;color:#888">'+c.time+'</div></div></div>';
+    });
+  }
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+async function doCheckin() {
+  var loc = await getLocation();
+  var today = new Date().toISOString().split('T')[0];
+  var now = new Date();
+  var timeStr = now.toLocaleString('zh-CN', { hour12: false });
+  try {
+    await dbAction('checkins', 'readwrite', function(s) {
+      s.add({ phone: currentUser.phone, date: today, time: timeStr, 
+        location: loc, timestamp: now.toISOString() });
+    });
+    showToast('✅ 签到成功！');
+    if (currentPage === 'home') renderHome();
+    else renderCheckin();
+  } catch(e) { showToast('签到失败'); }
+}
+
+// ====== Visit Form ======
+function renderVisitForm() {
+  var content = document.getElementById('mainContent');
+  photoData = {};
+  var html = 
+  '<div class="form-section"><h3>📍 店铺信息</h3>'+
+  '<div class="field"><label><span class="req">*</span> 店铺名称</label><input type="text" id="v-name" placeholder="例：丽颜美容SPA馆"></div>'+
+  '<div class="field"><label><span class="req">*</span> 店铺地址</label><input type="text" id="v-addr" placeholder="例：金水区花园路XX号"></div>'+
+  '<div class="field"><label>店铺类型</label><select id="v-type">'+
+    '<option value="">请选择</option><option>美容院</option><option>养生馆</option><option>减肥店</option>'+
+    '<option>斑敏痘问题肌</option><option>洗脸吧</option><option>养发护发馆</option><option>SPA馆</option>'+
+    '<option>美甲美睫店</option><option>艾灸养生馆</option><option>其它</option></select></div></div>'+
+
+  '<div class="form-section"><h3>👤 联系人</h3>'+
+  '<div class="field"><label><span class="req">*</span> 老板姓</label><input type="text" id="v-surname" placeholder="例：王"></div>'+
+  '<div class="field"><label>老板全名</label><input type="text" id="v-fullname" placeholder="知道的话填上"></div>'+
+  '<div class="field"><label><span class="req">*</span> 老板电话</label><input type="tel" id="v-phone" placeholder="11位手机号" maxlength="11"></div>'+
+  '<div class="field"><label>微信号</label><input type="text" id="v-wechat" placeholder="选填"></div></div>'+
+
+  '<div class="form-section"><h3>📸 照片采集</h3>'+
+  '<div class="photo-grid" id="photoGrid">'+
+    '<div class="photo-slot" id="photo-door" onclick="takePhoto(\'door\')"><span style="font-size:24px">📷</span><span class="slot-label">门头</span></div>'+
+    '<div class="photo-slot" id="photo-near" onclick="takePhoto(\'near\')"><span style="font-size:24px">📷</span><span class="slot-label">大门</span></div>'+
+    '<div class="photo-slot" id="photo-front" onclick="takePhoto(\'front\')"><span style="font-size:24px">📷</span><span class="slot-label">前台</span></div>'+
+    '<div class="photo-slot" id="photo-inside" onclick="takePhoto(\'inside\')"><span style="font-size:24px">📷</span><span class="slot-label">环境</span></div>'+
+  '</div></div>'+
+
+  '<div class="form-section"><h3>📝 陌拜情况</h3>'+
+  '<div class="field"><label>意向度</label><select id="v-intent">'+
+    '<option value="S">S - 强烈意向</option><option value="A">A - 有意向</option>'+
+    '<option value="B" selected>B - 一般</option><option value="C">C - 拒绝</option></select></div>'+
+  '<div class="field"><label>老板需求</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+
+    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-tuoke"> 拓客</label>'+
+    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-zhaopin"> 招聘</label>'+
+    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-yeji"> 做业绩</label>'+
+    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-xinpin"> 新品项</label></div></div>'+
+  '<div class="field"><label>微信二维码</label><select id="v-qrcode"><option value="0">未获取</option><option value="1">已拍照</option></select></div>'+
+  '<div class="field"><label>备注</label><textarea id="v-note" rows="3" style="width:100%;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit" placeholder="员工数量、装修档次、聊天要点…"></textarea></div></div>'+
+
+  '<div class="form-section"><h3>💰 酬劳预览</h3>'+
+  '<div id="payPreview" style="padding:8px;background:#f5f5f5;border-radius:8px;font-size:12px;color:#666">填写完必填项后自动计算</div></div>'+
+
+  '<div style="display:flex;gap:8px;padding:0 0 16px">'+
+  '<button class="btn btn-primary" onclick="saveVisit()">💾 保存上报</button>'+
+  '<button class="btn btn-outline" onclick="resetVisitForm()">清空</button></div>';
+
+  content.innerHTML = html;
+  // Auto-calculate on input changes
+  ['v-name','v-addr','v-surname','v-phone','v-qrcode','photo-door','photo-near','photo-front','photo-inside'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcPay);
+  });
+}
+
+function takePhoto(slot) {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var el = document.getElementById('photo-'+slot);
+      photoData[slot] = ev.target.result;
+      el.innerHTML = '<img src="'+ev.target.result+'"><div class="check">✓</div>';
+      el.classList.add('has-photo');
+      calcPay();
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function calcPay() {
+  var el = document.getElementById('payPreview');
+  if (!el) return;
+  var hasName = document.getElementById('v-name') && document.getElementById('v-name').value.trim();
+  var hasAddr = document.getElementById('v-addr') && document.getElementById('v-addr').value.trim();
+  var hasSurname = document.getElementById('v-surname') && document.getElementById('v-surname').value.trim();
+  var hasPhone = document.getElementById('v-phone') && document.getElementById('v-phone').value.trim().length >= 11;
+  var photos = Object.keys(photoData).length;
+  var hasQR = document.getElementById('v-qrcode') && document.getElementById('v-qrcode').value === '1';
+
+  if (!hasName || !hasAddr || !hasSurname || !hasPhone) {
+    el.innerHTML = '⚠️ 请先填写完整的店铺信息（店名、地址、老板姓、电话）';
+    el.style.color = '#856404'; el.style.background = '#fff3cd';
+    return;
+  }
+  var pay = 4.0; // Basic
+  if (photos >= 4) pay = 5.0; // With all photos
+  else if (photos >= 2) pay = 4.5;
+  if (hasQR) pay += 0.3;
+  // Intent bonus
+  var intent = document.getElementById('v-intent');
+  if (intent) {
+    var iv = intent.value;
+    if (iv === 'S') pay += 0.5;
+    else if (iv === 'A') pay += 0.3;
+  }
+  el.innerHTML = '💰 <strong>'+pay.toFixed(2)+' 元</strong>'+
+    '<br><span style="font-size:10px">基础 '+ (photos>=4?'5.00':'4.00') +' 元'+
+    (hasQR?' + 二维码 0.30 元':'')+
+    (intent && intent.value==='S'?' + S级奖励 0.50 元':'')+
+    (intent && intent.value==='A'?' + A级奖励 0.30 元':'')+
+    ' | 照片 '+photos+' 张</span>';
+  el.style.color = '#155724'; el.style.background = '#d4edda';
+  return pay;
+}
+
+async function saveVisit() {
+  var name = document.getElementById('v-name').value.trim();
+  var addr = document.getElementById('v-addr').value.trim();
+  var surname = document.getElementById('v-surname').value.trim();
+  var phone = document.getElementById('v-phone').value.trim();
+  if (!name || !addr || !surname || !phone) return showToast('请填写必填信息');
+  if (phone.length < 11) return showToast('电话格式不对');
+
+  var needs = [];
+  if (document.getElementById('need-tuoke').checked) needs.push('拓客');
+  if (document.getElementById('need-zhaopin').checked) needs.push('招聘');
+  if (document.getElementById('need-yeji').checked) needs.push('做业绩');
+  if (document.getElementById('need-xinpin').checked) needs.push('新品项');
+
+  var loc = await getLocation();
+  var pay = calcPay();
+  if (typeof pay !== 'number') pay = 4.0;
+
+  var visit = {
+    phone: currentUser.phone, userName: currentUser.name,
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleString('zh-CN', {hour12:false}),
+    storeName: name, storeAddr: addr, storeType: document.getElementById('v-type').value,
+    surname: surname, fullname: document.getElementById('v-fullname').value.trim(),
+    contactPhone: phone, wechat: document.getElementById('v-wechat').value.trim(),
+    intent: document.getElementById('v-intent').value,
+    needs: needs, qrcode: document.getElementById('v-qrcode').value,
+    photos: JSON.stringify(photoData),
+    photosCount: Object.keys(photoData).length,
+    note: document.getElementById('v-note').value.trim(),
+    earnings: pay, location: loc,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    await dbAction('visits', 'readwrite', function(s) { s.add(visit); });
+    // Update user stats
+    var user = await dbAction('users', 'readonly', function(s, ok) {
+      var r = s.get(currentUser.phone); r.onsuccess = function() { ok(r.result); };
+    });
+    user.totalVisits = (user.totalVisits||0) + 1;
+    user.totalEarnings = (user.totalEarnings||0) + pay;
+    await dbAction('users', 'readwrite', function(s) { s.put(user); });
+    currentUser = user;
+    
+    showToast('✅ 上报成功！本次酬劳 '+pay.toFixed(2)+' 元');
+    resetVisitForm();
+    switchTab('records');
+  } catch(e) { showToast('保存失败'); }
+}
+
+function resetVisitForm() {
+  photoData = {};
+  renderVisitForm();
+}
+// ====== Records ======
+async function renderRecords() {
+  var content = document.getElementById('mainContent');
+  var visits = await dbAction('visits', 'readonly', function(s, ok) {
+    var idx = s.index('phone');
+    var r = idx.getAll(IDBKeyRange.only(currentUser.phone));
+    r.onsuccess = function() { ok(r.result || []); };
+  });
+  var sorted = (visits||[]).sort(function(a,b) { return b.timestamp.localeCompare(a.timestamp); });
+
+  var html = '<div class="card"><h3>📋 陌拜记录（共 '+sorted.length+' 条）</h3>';
+  var totalPay = sorted.reduce(function(s,v) { return s+(v.earnings||0); }, 0);
+  html += '<div style="font-size:12px;color:var(--text2)">累计酬劳：<strong style="color:var(--success)">'+totalPay.toFixed(2)+' 元</strong></div></div>';
+
+  if (sorted.length === 0) {
+    html += '<div class="empty-state"><div class="icon">📭</div><p>还没有陌拜记录</p></div>';
+  } else {
+    var intents = {S:'强烈',A:'有意向',B:'一般',C:'拒绝'};
+    sorted.forEach(function(v) {
+      html += '<div class="visit-item"><div class="v-name">'+(v.surname||'')+'总 · '+escHtml(v.storeName)+'</div>'+
+        '<div class="v-addr">'+escHtml(v.storeAddr)+'</div>'+
+        '<div class="v-meta"><span class="v-tag '+(v.intent||'b').toLowerCase()+'">'+(intents[v.intent]||'一般')+'</span>'+
+        '<span class="v-tag">💰 '+(v.earnings||0).toFixed(2)+'元</span>'+
+        '<span class="v-tag">📸 '+(v.photosCount||0)+'张</span>'+
+        (v.wechat?'<span class="v-tag" style="background:#d4edda;color:#155724">📱 已加微信</span>':'')+
+        '</div><div style="font-size:10px;color:#aaa;margin-top:4px">'+v.date+' '+v.time+'</div>'+
+        '<div class="v-pay">💰'+(v.earnings||0).toFixed(1)+'</div></div>';
+    });
+  }
+  content.innerHTML = html;
+
+  // Add export button
+  html += '<div class="card" style="text-align:center">'+
+    '<button class="btn btn-outline btn-sm" onclick="exportData()" style="display:inline-block;width:auto;padding:8px 20px">📤 导出数据</button>'+
+    '<button class="btn btn-outline btn-sm" onclick="importData()" style="display:inline-block;width:auto;padding:8px 20px;margin-left:8px">📥 导入数据</button></div>';
+  content.innerHTML = html;
+}
+
+function escHtml(s) { if(!s)return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function exportData() {
+  var data = { exportDate: new Date().toISOString(), visits: [] };
+  dbAction('visits', 'readonly', function(s, ok) {
+    var r = s.getAll();
+    r.onsuccess = function() {
+      data.visits = (r.result||[]).filter(function(v) { return v.phone === currentUser.phone; });
+      var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = '陌拜数据_'+currentUser.name+'_'+new Date().toISOString().split('T')[0]+'.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✅ 数据已导出');
+    };
+  });
+}
+
+function importData() {
+  var input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = async function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        if (!data.visits || !Array.isArray(data.visits)) return showToast('数据格式不对');
+        var count = 0;
+        for (var v of data.visits) {
+          try { await dbAction('visits', 'readwrite', function(s) { s.add(v); }); count++; } catch(e) {}
+        }
+        showToast('✅ 导入 '+count+' 条记录');
+        renderRecords();
+      } catch(e) { showToast('导入失败'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ====== Profile ======
+function renderProfile() {
+  var content = document.getElementById('mainContent');
+  var u = currentUser;
+  var html = 
+  '<div class="card" style="text-align:center;padding:24px">'+
+    '<div style="font-size:48px;margin-bottom:8px">👤</div>'+
+    '<h3 style="font-size:18px">'+escHtml(u.name)+'</h3>'+
+    '<p style="color:var(--text2);font-size:12px">'+(u.role==='admin'?'管理者':'陌拜员')+'</p></div>'+
+
+  '<div class="card"><h3>个人信息</h3>'+
+  '<div style="font-size:13px;line-height:2"><strong>手机号：</strong>'+u.phone+'</div>'+
+  '<div style="font-size:13px;line-height:2"><strong>身份证：</strong>'+u.idNumber+'</div>'+
+  '<div style="font-size:13px;line-height:2"><strong>累计陌拜：</strong>'+(u.totalVisits||0)+' 家</div>'+
+  '<div style="font-size:13px;line-height:2"><strong>累计收入：</strong>💰 '+(u.totalEarnings||0).toFixed(2)+' 元</div>'+
+  '<div style="font-size:13px;line-height:2"><strong>注册时间：</strong>'+(u.createdAt||'').split('T')[0]+'</div></div>'+
+
+  '<div class="card"><h3>设置</h3>'+
+  '<button class="btn btn-danger btn-sm" onclick="logout()" style="margin-bottom:8px">退出登录</button>'+
+  '<p style="font-size:10px;color:#aaa">数据存储在手机本地，卸载或清除浏览器数据会丢失</p></div>';
+  content.innerHTML = html;
+}
+
+function logout() {
+  if (!confirm('确认退出登录？')) return;
+  currentUser = null;
+  document.getElementById('main-layout').classList.remove('active');
+  document.getElementById('auth-page').classList.add('active');
+}
+
+// ====== Admin Dashboard ======
+async function renderAdmin() {
+  var content = document.getElementById('mainContent');
+  if (currentUser.role !== 'admin') {
+    content.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><p>仅管理者可访问</p></div>';
+    return;
+  }
+
+  var visits = await dbAction('visits', 'readonly', function(s, ok) {
+    var r = s.getAll(); r.onsuccess = function() { ok(r.result || []); };
+  });
+  var users = await dbAction('users', 'readonly', function(s, ok) {
+    var r = s.getAll(); r.onsuccess = function() { ok(r.result || []); };
+  });
+  var checkins = await dbAction('checkins', 'readonly', function(s, ok) {
+    var r = s.getAll(); r.onsuccess = function() { ok(r.result || []); };
+  });
+
+  var today = new Date().toISOString().split('T')[0];
+  var workers = (users||[]).filter(function(u) { return u.role === 'worker'; });
+  var todayCheckins = (checkins||[]).filter(function(c) { return c.date === today; });
+  var todayVisits = (visits||[]).filter(function(v) { return v.date === today; });
+
+  var totalEarnings = (visits||[]).reduce(function(s,v) { return s+(v.earnings||0); }, 0);
+  var todayEarnings = todayVisits.reduce(function(s,v) { return s+(v.earnings||0); }, 0);
+
+  // Stats grid
+  var html = '<div class="admin-grid">'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--primary)">'+(visits||[]).length+'</div><div style="font-size:10px;color:#888">累计陌拜</div></div>'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--success)">'+todayVisits.length+'</div><div style="font-size:10px;color:#888">今日陌拜</div></div>'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--accent)">'+totalEarnings.toFixed(1)+'</div><div style="font-size:10px;color:#888">总收入(元)</div></div>'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--warning)">'+todayEarnings.toFixed(1)+'</div><div style="font-size:10px;color:#888">今日收入(元)</div></div>'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--success)">'+todayCheckins.length+'/'+workers.length+'</div><div style="font-size:10px;color:#888">今日签到</div></div>'+
+    '<div class="card" style="text-align:center"><div class="num" style="font-size:28px;font-weight:700;color:var(--primary)">'+workers.length+'</div><div style="font-size:10px;color:#888">陌拜员</div></div>'+
+  '</div>';
+
+  // Worker list
+  html += '<div class="card"><h3>👥 陌拜员状态</h3>';
+  if (workers.length === 0) {
+    html += '<p style="color:#aaa;font-size:12px">暂无陌拜员注册</p>';
+  } else {
+    workers.forEach(function(w) {
+      var wVisits = (visits||[]).filter(function(v) { return v.phone === w.phone; });
+      var wToday = wVisits.filter(function(v) { return v.date === today; });
+      var wChecked = todayCheckins.some(function(c) { return c.phone === w.phone; });
+      var wEarnings = wVisits.reduce(function(s,v) { return s+(v.earnings||0); }, 0);
+      var status = wChecked ? (wToday.length > 0 ? 'working' : 'online') : 'offline';
+      var statusText = wChecked ? (wToday.length > 0 ? '工作中' : '已签到') : '未签到';
+      html += '<div class="admin-worker">'+
+        '<span class="status-dot '+status+'"></span>'+
+        '<div class="w-info"><div class="w-name">'+escHtml(w.name)+'</div>'+
+        '<div class="w-stat">今日 '+wToday.length+' 家 | 累计 '+wVisits.length+' 家 | 💰'+wEarnings.toFixed(1)+'元</div></div>'+
+        '<div class="w-actions"><button class="btn btn-outline btn-sm" onclick="viewWorker(\''+w.phone+'\')">查看</button></div></div>';
+    });
+  }
+  html += '</div>';
+
+  // Recent activity
+  html += '<div class="card"><h3>📊 实时动态</h3>';
+  var recentVisits = (visits||[]).sort(function(a,b) { return b.timestamp.localeCompare(a.timestamp); }).slice(0,10);
+  recentVisits.forEach(function(v) {
+    var intents = {S:'强烈',A:'有意向',B:'一般',C:'拒绝'};
+    html += '<div class="visit-item" style="margin-bottom:6px;padding:10px">'+
+      '<div class="v-name">'+escHtml(v.userName||'')+' → '+(v.surname||'')+'总 · '+escHtml(v.storeName)+'</div>'+
+      '<div class="v-meta"><span class="v-tag '+(v.intent||'b').toLowerCase()+'">'+(intents[v.intent]||'一般')+'</span>'+
+      '<span class="v-tag">💰'+(v.earnings||0).toFixed(1)+'元</span>'+
+      '</div><div style="font-size:10px;color:#aaa;margin-top:2px">'+v.date+' '+v.time+'</div></div>';
+  });
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+function viewWorker(phone) {
+  showToast('查看员工详情功能开发中');
+}
+
+// ====== Init ======
+async function init() {
+  try {
+    db = await openDB();
+    document.getElementById('splash').classList.add('hide');
+  } catch(e) {
+    document.getElementById('splash').classList.add('hide');
+    showToast('数据库打开失败: '+e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
