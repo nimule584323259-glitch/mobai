@@ -214,7 +214,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <script>
 // ====== App State ======
 var DB_NAME = 'mobai_db';
-var DB_VER = 1;
+var DB_VER = 2;
 var db = null;
 var currentUser = null;
 var currentPage = 'home';
@@ -1171,14 +1171,9 @@ async function renderAdminWorkerDetail(phone) {
 }
 // ====== Init ======
 async function init() {
-  // Force splash to hide after 5 seconds no matter what
-  setTimeout(function() {
-    var s = document.getElementById("splash");
-    if (s && !s.classList.contains("hide")) {
-      s.classList.add("hide");
-      document.getElementById("auth-page").classList.add("active");
-    }
-  }, 5000);
+  // Show login page immediately, init DB in background
+  document.getElementById("splash").classList.add("hide");
+  document.getElementById("auth-page").classList.add("active");
   try {
     db = await openDB();
     // Set default admin invitation code
@@ -1192,6 +1187,9 @@ async function init() {
     } catch(e) {}
     // Auto-login from saved session
     var savedUser = localStorage.getItem('mobai_user');
+    // Also hide splash again just in case
+    var s2 = document.getElementById("splash");
+    if (s2) s2.classList.add("hide");
     if (savedUser) {
       try {
         var su = JSON.parse(savedUser);
