@@ -575,11 +575,11 @@ function renderVisitForm() {
   '<div class="field"><label>意向度</label><select id="v-intent">'+
     '<option value="S">S - 强烈意向</option><option value="A">A - 有意向</option>'+
     '<option value="B" selected>B - 一般</option><option value="C">C - 拒绝</option></select></div>'+
-  '<div class="field"><label>老板需求</label><div style="display:flex;flex-wrap:wrap;gap:6px">'+
-    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-tuoke"> 拓客</label>'+
-    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-zhaopin"> 招聘</label>'+
-    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-yeji"> 做业绩</label>'+
-    '<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="need-xinpin"> 新品项</label></div></div>'+
+  '<div class="field"><label>老板需求</label><div class="checkbox-group">'+
+    '<label><input type="checkbox" id="need-tuoke"> 拓客</label>'+
+    '<label><input type="checkbox" id="need-zhaopin"> 招聘</label>'+
+    '<label><input type="checkbox" id="need-yeji"> 做业绩</label>'+
+    '<label><input type="checkbox" id="need-xinpin"> 新品项</label></div></div>'+
   '<div class="field"><label>微信二维码</label><select id="v-qrcode"><option value="0">未获取</option><option value="1">已拍照</option></select></div>'+
   '<div class="field"><label>备注</label><textarea id="v-note" rows="3" style="width:100%;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit" placeholder="员工数量、装修档次、聊天要点…"></textarea></div></div>'+
 
