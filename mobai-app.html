@@ -827,8 +827,8 @@ function renderProfile() {
     '<p style="color:var(--text2);font-size:12px">'+(u.role==='admin'?'管理者':'陌拜员')+'</p></div>'+
 
   '<div class="card"><h3>个人信息</h3>'+
-  '<div style="font-size:13px;line-height:2"><strong>手机号：</strong>'+u.phone+'</div>'+
-  '<div style="font-size:13px;line-height:2"><strong>身份证：</strong>'+u.idNumber+'</div>'+
+  '<div style="font-size:13px;line-height:2"><strong>手机号：</strong>'+u.phone.substring(0,3)+'****'+u.phone.substring(7)+
+  '<div style="font-size:13px;line-height:2"><strong>身份证：</strong>**** 已加密</div>'+
   '<div style="font-size:13px;line-height:2"><strong>累计陌拜：</strong>'+(u.totalVisits||0)+' 家</div>'+
   '<div style="font-size:13px;line-height:2"><strong>累计收入：</strong>💰 '+(u.totalEarnings||0).toFixed(2)+' 元</div>'+
   '<div style="font-size:13px;line-height:2"><strong>注册时间：</strong>'+(u.createdAt||'').split('T')[0]+'</div></div>'+
@@ -1186,145 +1186,53 @@ function deleteResource(id) {
 }
 
 function showResourceUpload() {
-  var overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px";
-  overlay.innerHTML = "<div style=\"background:#fff;border-radius:12px;padding:20px;width:100%;max-width:360px\">"+
+  if (currentUser.role !== "admin") return showToast("仅管理者可上传");
+  var o = document.createElement("div");
+  o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px";
+  o.innerHTML = "<div style=\"background:#fff;border-radius:12px;padding:20px;width:100%;max-width:360px\">"+
     "<h3 style=\"font-size:15px;margin-bottom:10px\">📤 上传资料</h3>"+
-    "<div style=\"text-align:center;padding:20px;border:2px dashed #ddd;border-radius:8px;margin-bottom:10px;cursor:pointer\" onclick=\"pickResourceFile()\">"+
-    "<div style=\"font-size:36px;margin-bottom:6px\">📷</div>"+
-    "<div style=\"font-size:13px;color:#888\">点击选择图片或文件</div>"+
-    "<div style=\"font-size:11px;color:#aaa;margin-top:4px\">支持相册 / 拍照 / 文件</div></div>"+
+    "<div style=\"text-align:center;padding:30px 20px;border:2px dashed #ddd;border-radius:8px;margin-bottom:10px;cursor:pointer\" onclick=\"pickLibFile()\">"+
+    "<div style=\"font-size:40px\">📷</div>"+
+    "<div style=\"font-size:13px;color:#888;margin-top:6px\">点击选择图片</div>"+
+    "<div style=\"font-size:11px;color:#aaa;margin-top:4px\">支持拍照 / 相册选取</div></div>"+
     "<div class=\"field\"><input type=\"text\" id=\"res-title\" placeholder=\"标题（选填）\"></div>"+
-    "<div style=\"display:flex;gap:6px\"><button class=\"btn btn-primary btn-sm\" onclick=\"submitResource()\" style=\"flex:1\">上传</button>"+
-    "<button class=\"btn btn-outline btn-sm\" onclick=\"this.parentElement.parentElement.parentElement.remove()\" style=\"flex:1\">取消</button></div></div>";
-  document.body.appendChild(overlay);
+    "<div style=\"display:flex;gap:6px\"><button class=\"btn btn-primary btn-sm\" id=\"libUploadBtn\" onclick=\"submitLibResource()\" disabled style=\"flex:1\">上传</button>"+
+    "<button class=\"btn btn-outline btn-sm\" onclick=\"o.remove()\" style=\"flex:1\">取消</button></div></div>";
+  document.body.appendChild(o);
 }
-
-var pendingResourceFile = null;
-function pickResourceFile() {
-  var input = document.createElement("input");
-  input.type = "file"; input.accept = "image/*";
-  input.onchange = function(e) {
+var libFileData = null;
+function pickLibFile() {
+  var inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*";
+  inp.onchange = function(e) {
     if (!e.target.files[0]) return;
-    pendingResourceFile = e.target.files[0];
-    var reader = new FileReader();
-    reader.onload = function(ev) {
+    var r = new FileReader();
+    r.onload = function(ev) {
+      libFileData = ev.target.result;
       var div = document.querySelector("[style*=\"dashed\"]");
-      if (div) {
-        div.style.borderColor = "#27ae60";
-        div.style.background = "#f0fff4";
-        div.innerHTML = "<div style=\"font-size:36px;margin-bottom:4px\">✅</div><div style=\"font-size:13px;color:#27ae60\">已选择文件</div><div style=\"font-size:11px;color:#888\">"+e.target.files[0].name+"</div>";
-      }
+      if (div) { div.style.borderColor = "#27ae60"; div.style.background = "#f0fff4";
+        div.innerHTML = "<div style=\"font-size:30px\">✅</div><div style=\"font-size:13px;color:#27ae60\">已选择</div>"; }
+      document.getElementById("libUploadBtn").disabled = false;
     };
-    reader.readAsDataURL(e.target.files[0]);
+    r.readAsDataURL(e.target.files[0]);
   };
-  input.click();
+  inp.click();
 }
-
-async function submitResource() {
+async function submitLibResource() {
+  if (!libFileData) return showToast("请先选择文件");
+  var title = (document.getElementById("res-title").value||"").trim() || "资料";
+  await dbAction("resources","readwrite",function(s){
+    s.add({title:title,type:"image",data:libFileData,userName:currentUser.name,phone:currentUser.phone,timestamp:new Date().toISOString()});
+  });
+  libFileData = null;
+  var o = document.querySelector("[style*=\"fixed\"]");
+  if (o) o.remove();
+  showToast("上传成功");
+  renderLibrary();
+}function submitResource() {
   if (!pendingResourceFile) { showToast("请先选择文件"); return; }
   var title = document.getElementById("res-title").value.trim();
-  var data = await new Promise(function(ok) {
-    var reader = new FileReader();
-    reader.onload = function(ev) { ok(ev.target.result); };
-    reader.readAsDataURL(pendingResourceFile);
-  });
-  try {
-    await dbAction("resources","readwrite",function(s){
-      s.add({title:title||"资料",type:"image",data:data,userName:currentUser.name,phone:currentUser.phone,timestamp:new Date().toISOString()});
-    });
-    pendingResourceFile = null;
-    var overlay = document.querySelector("[style*=\"fixed\"]");
-    if (overlay) overlay.remove();
-    showToast("上传成功！");
-    renderLibrary();
-  } catch(e) { showToast("上传失败"); }
-}
-
-function showResourceUpload() {
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:16px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto">'+
-    '<h3 style="font-size:15px;margin-bottom:10px">📤 上传资料</h3>'+
-    '<div class="field"><label>标题</label><input type="text" id="res-title" placeholder="资料名称"></div>'+
-    '<div class="field"><label>描述</label><textarea id="res-desc" rows="2" style="width:100%;padding:8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;resize:vertical" placeholder="简要描述"></textarea></div>'+
-    '<div class="field"><label>类型</label><select id="res-type" onchange="toggleResType()"><option value="text">文字</option><option value="image">图片</option></select></div>'+
-    '<div id="res-content-area"><div class="field"><label>内容</label><textarea id="res-text" rows="4" style="width:100%;padding:8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;resize:vertical" placeholder="输入文字内容..."></textarea></div></div>'+
-    '<div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-primary btn-sm" onclick="submitResource()" style="flex:1">上传</button>'+
-    '<button class="btn btn-outline btn-sm" onclick="this.parentElement.parentElement.parentElement.remove()" style="flex:1">取消</button></div></div>';
-  document.body.appendChild(overlay);
-}
-
-function toggleResType() {
-  var typeSel = document.getElementById('res-type');
-  var area = document.getElementById('res-content-area');
-  if (typeSel.value === 'image') {
-    area.innerHTML = '<div class="field"><label>图片</label><input type="file" accept="image/*" id="res-image"></div>';
-  } else {
-    area.innerHTML = '<div class="field"><label>内容</label><textarea id="res-text" rows="4" style="width:100%;padding:8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;resize:vertical" placeholder="输入文字内容..."></textarea></div>';
-  }
-}
-
-async function submitResource() {
-  var title = document.getElementById('res-title').value.trim();
-  var desc = document.getElementById('res-desc').value.trim();
-  var type = document.getElementById('res-type').value;
-  if (!title) return showToast('请输入标题');
-  var data = '';
-  if (type === 'text') {
-    data = document.getElementById('res-text').value.trim();
-    if (!data) return showToast('请输入内容');
-  } else {
-    var fileInput = document.getElementById('res-image');
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) return showToast('请选择图片');
-    data = await new Promise(function(ok) {
-      var reader = new FileReader();
-      reader.onload = function(ev) { ok(ev.target.result); };
-      reader.readAsDataURL(fileInput.files[0]);
-    });
-  }
-  try {
-    await dbAction('resources', 'readwrite', function(s) {
-      s.add({title:title, description:desc, type:type, data:data,
-        userName:currentUser.name, phone:currentUser.phone, timestamp:new Date().toISOString()});
-    });
-    var overlay = document.querySelector('[style*="fixed"]');
-    if (overlay) overlay.remove();
-    showToast('上传成功！');
-    renderLibrary();
-  } catch(e) { showToast('上传失败'); }
-}
-
-
-async function viewVisitDetail(id) {
-  var visits = await dbAction("visits","readonly",function(s,ok){var r=s.get(id);r.onsuccess=function(){ok(r.result);};});
-  if (!visits) return showToast("记录不存在");
-  document.getElementById("pageTitle").textContent = "记录详情";
-  document.getElementById("backBtn").classList.add("show");
-  currentPage = "visit-detail";
-  var needs = (visits.needs||[]).join(",");
-  var html = "<div class=\"card\"><h3>📍 店铺信息</h3>"+
-    "<div style=\"font-size:13px;line-height:2\"><strong>店名：</strong>"+escHtml(visits.storeName)+"</div>"+
-    "<div><strong>地址：</strong>"+escHtml(visits.storeAddr)+"</div>"+
-    "<div><strong>类型：</strong>"+(visits.storeType||"-")+"</div></div>"+
-    "<div class=\"card\"><h3>👤 联系人</h3>"+
-    "<div><strong>老板：</strong>"+(visits.surname||"")+"总</div>"+
-    "<div><strong>电话：</strong>"+escHtml(visits.contactPhone)+"</div>"+
-    (visits.wechat?"<div><strong>微信：</strong>"+escHtml(visits.wechat)+"</div>":"")+"</div>"+
-    "<div class=\"card\"><h3>📝 陌拜情况</h3>"+
-    "<div><strong>意向：</strong>"+({S:"强烈",A:"有意向",B:"一般",C:"拒绝"}[visits.intent]||"一般")+"</div>"+
-    (needs?"<div><strong>需求：</strong>"+needs+"</div>":"")+
-    "<div><strong>酬劳：</strong>💰 "+(visits.earnings||0).toFixed(2)+" 元</div>"+
-    "<div><strong>时间：</strong>"+visits.date+" "+visits.time+"</div>"+
-    (visits.note?"<div><strong>备注：</strong>"+escHtml(visits.note)+"</div>":"")+"</div>";
-  if (visits.wechat) {
-    html += "<div class=\"card\"><h3>📱 微信</h3><div>微信号："+escHtml(visits.wechat)+"</div></div>";
-  }
-  html += "<div class=\"card\" style=\"text-align:center\"><button class=\"btn btn-primary\" onclick=\"editVisit("+id+")\">✏️ 修改记录</button></div>";
-  document.getElementById("mainContent").innerHTML = html;
-}
-
-function deletePost(id){dbAction("posts","readonly",function(s,ok){var r=s.get(id);r.onsuccess=function(){ok(r.result);};}).then(function(p){if(!p)return;if(p.phone!==currentUser.phone&&tUser.role!=="admin")return showToast("无权删除");dbAction("posts","readwrite",function(s){s.delete(id);}).then(function(){renderMoments();showToast("已删除");});});}
+  
 
 function submitComment(postId) {
   var input = document.getElementById("comment-input-"+postId);
